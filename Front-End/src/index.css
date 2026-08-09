@@ -1,0 +1,35 @@
+:root {
+  --color-page-bg: #efe5e5;
+  --color-card-bg: #e2cec0;
+  --color-surface: #f5ece6;
+  --color-input-bg: #e8d7cc;
+  --color-border: #e2d3c8;
+  --color-text: #2d2130;
+  --color-primary-dark: #48154c;
+  --color-primary-light: #ae3a65;
+
+  font-family: "Poppins", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-page-bg);
+  color: var(--color-text);
+}
+
+button {
+  font-family: inherit;
+}

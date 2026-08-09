@@ -1,0 +1,42 @@
+.role-tabs {
+  display: inline-flex;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 6px;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(60, 20, 50, 0.06);
+}
+
+.role-tab {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--color-text);
+  padding: 12px 34px;
+  border-radius: 999px;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.role-tab:hover {
+  background: rgba(87, 20, 71, 0.08);
+}
+
+.role-tab--active {
+  background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary-dark));
+  color: #fff;
+}
+
+.role-tab--active:hover {
+  background: var(--color-primary-dark);
+}
+
+@media (max-width: 560px) {
+  .role-tab {
+    padding: 10px 16px;
+    font-size: 0.95rem;
+  }
+}

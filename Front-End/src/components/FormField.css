@@ -1,0 +1,21 @@
+.form-field {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--color-input-bg);
+  border: 1.5px solid var(--color-primary-dark);
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-size: 1.05rem;
+  font-family: inherit;
+  color: var(--color-text);
+  outline: none;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.form-field::placeholder {
+  color: #8a7f7a;
+}
+
+.form-field:focus {
+  box-shadow: 0 0 0 3px rgba(87, 20, 71, 0.15);
+}

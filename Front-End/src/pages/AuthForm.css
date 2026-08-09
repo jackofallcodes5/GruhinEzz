@@ -1,0 +1,33 @@
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.auth-form__error {
+  margin: -8px 0 0;
+  color: #b3261e;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth-form .primary-button {
+  margin-top: 14px;
+}
+
+.auth-form__switch {
+  text-align: center;
+  margin: 14px 0 0;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.auth-form__switch a {
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-form__switch a:hover {
+  text-decoration: underline;
+}
