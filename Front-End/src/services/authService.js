@@ -17,7 +17,7 @@ import apiClient from "./apiClient";
  */
 
 // Flip this to false once the real backend is available and reachable.
-const USE_MOCK_API = true;
+const USE_MOCK_API = false;
 
 const mockDelay = (data, ms = 700) =>
   new Promise((resolve) => setTimeout(() => resolve(data), ms));
@@ -115,4 +115,29 @@ export async function logIn({ role, email, password }) {
     password,
   });
   return response.data;
+}
+
+/**
+ * Request an OTP to be sent to the given email address.
+ *
+ * Called immediately after a successful signup or login API response,
+ * before the token is committed to localStorage.
+ *
+ * @param {string} email
+ * @param {string} [userName]
+ * @returns {Promise<void>}
+ */
+export async function sendOtp(email, userName) {
+  await apiClient.post("/auth/send-otp", { email, userName });
+}
+
+/**
+ * Verify the OTP the user typed on the OTP page.
+ *
+ * @param {string} email
+ * @param {string} otp   6-digit string
+ * @returns {Promise<void>}
+ */
+export async function verifyOtp(email, otp) {
+  await apiClient.post("/auth/verify-otp", { email, otp });
 }

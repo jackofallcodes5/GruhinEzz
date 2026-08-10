@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout";
 import FormField from "../components/FormField";
 import PrimaryButton from "../components/PrimaryButton";
-import { logIn } from "../services/authService";
+import { logIn, sendOtp } from "../services/authService";
 import "./AuthForm.css";
 
 export default function LoginPage() {
@@ -22,10 +22,13 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      // TODO: Connect this function to the Node.js backend.
-      const { token } = await logIn({ role, ...form });
-      localStorage.setItem("gruhinezz_token", token);
-      navigate("/dashboard");
+      const { token, user } = await logIn({ role, ...form });
+      // Don't store token yet — wait for OTP verification
+      await sendOtp(user.email, user.userName);
+      navigate("/verify-otp", {
+        state: { email: user.email, userName: user.userName, role: user.role, token, user },
+        replace: true,
+      });
     } catch (err) {
       setError(err.message || "Invalid email or password.");
     } finally {

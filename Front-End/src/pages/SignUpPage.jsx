@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout";
 import FormField from "../components/FormField";
 import PrimaryButton from "../components/PrimaryButton";
-import { signUp } from "../services/authService";
+import { signUp, sendOtp } from "../services/authService";
 import "./AuthForm.css";
 
 export default function SignUpPage() {
@@ -27,12 +27,16 @@ export default function SignUpPage() {
     setError("");
     setLoading(true);
     try {
-      // TODO: Connect this function to the Node.js backend.
-      await signUp({ role, ...form });
-      navigate("/login");
+      const { token, user } = await signUp({ role, ...form });
+      // Don't store token yet — wait for OTP verification
+      await sendOtp(user.email, user.userName);
+      navigate("/verify-otp", {
+        state: { email: user.email, userName: user.userName, role: user.role, token, user },
+        replace: true,
+      });
     } catch (err) {
-      setError(err.message || "Something went wrong. Please try again.");
-    } finally {
+  setError(err.response?.data?.message || err.message || "Something went wrong. Please try again.");
+} finally {
       setLoading(false);
     }
   };
