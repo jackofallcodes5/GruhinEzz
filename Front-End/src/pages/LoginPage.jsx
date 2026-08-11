@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../layouts/AuthLayout";
 import FormField from "../components/FormField";
 import PrimaryButton from "../components/PrimaryButton";
-import { logIn, sendOtp } from "../services/authService";
+import { logIn } from "../services/authService";
 import "./AuthForm.css";
 
 export default function LoginPage() {
@@ -23,8 +23,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { token, user } = await logIn({ role, ...form });
-      // Don't store token yet — wait for OTP verification
-      await sendOtp(user.email, user.userName);
+      // Don't store token yet — navigate to OTP page where user generates & verifies OTP
       navigate("/verify-otp", {
         state: { email: user.email, userName: user.userName, role: user.role, token, user },
         replace: true,

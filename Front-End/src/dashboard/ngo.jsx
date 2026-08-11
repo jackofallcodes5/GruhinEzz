@@ -5,6 +5,7 @@ import "./dashboard.css";
 export default function NgoDashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("gruhinezz_user");
@@ -28,24 +29,58 @@ export default function NgoDashboard() {
 
   if (!user) return null;
 
+  const navItems = [
+    { icon: "🏠", label: "Overview" },
+    { icon: "🌱", label: "Programs" },
+    { icon: "🤝", label: "Partnerships" },
+    { icon: "📊", label: "Reports" },
+    { icon: "📢", label: "Announcements" },
+    { icon: "⚙️", label: "Settings" },
+  ];
+
   return (
     <div className="dashboard-page">
-      <div className="dashboard-sidebar">
+      {/* ── Sidebar ── */}
+      <div className={`dashboard-sidebar ${mobileNavOpen ? "dashboard-sidebar--open" : ""}`}>
         <div className="dashboard-logo">GruhinEzz</div>
         <nav className="dashboard-nav">
-          <a href="#" className="dashboard-nav__item active">🏠 Overview</a>
-          <a href="#" className="dashboard-nav__item">🌱 Programs</a>
-          <a href="#" className="dashboard-nav__item">🤝 Partnerships</a>
-          <a href="#" className="dashboard-nav__item">📊 Reports</a>
-          <a href="#" className="dashboard-nav__item">📢 Announcements</a>
-          <a href="#" className="dashboard-nav__item">⚙️ Settings</a>
+          {navItems.map((item, idx) => (
+            <a
+              key={idx}
+              href="#"
+              className={`dashboard-nav__item${idx === 0 ? " active" : ""}`}
+              onClick={() => setMobileNavOpen(false)}
+            >
+              {item.icon} {item.label}
+            </a>
+          ))}
         </nav>
         <button className="dashboard-logout" onClick={handleLogout}>
           🚪 Logout
         </button>
       </div>
 
+      {/* Mobile overlay */}
+      {mobileNavOpen && (
+        <div className="dashboard-overlay" onClick={() => setMobileNavOpen(false)} />
+      )}
+
       <main className="dashboard-main">
+        {/* Mobile header */}
+        <div className="dashboard-mobile-header">
+          <button
+            className="dashboard-hamburger"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open navigation"
+          >
+            ☰
+          </button>
+          <span className="dashboard-mobile-logo">GruhinEzz</span>
+          <div className="dashboard-avatar dashboard-avatar--sm">
+            {user.userName?.[0]?.toUpperCase()}
+          </div>
+        </div>
+
         <header className="dashboard-header">
           <div>
             <h1 className="dashboard-header__title">

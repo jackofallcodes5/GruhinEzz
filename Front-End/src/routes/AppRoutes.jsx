@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import SignUpPage from "../pages/SignUpPage";
 import LoginPage from "../pages/LoginPage";
+import OtpPage from "../pages/OtpPage";
 import BuyerDashboard from "../dashboard/buyer";
 import SellerDashboard from "../dashboard/seller";
 import NgoDashboard from "../dashboard/ngo";
@@ -38,6 +39,7 @@ export default function AppRoutes() {
       <Route path="/" element={<Navigate to="/signup" replace />} />
       <Route path="/signup" element={<SignUpPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/verify-otp" element={<OtpPage />} />
 
       {/* Generic /dashboard → redirect to role-specific path */}
       <Route

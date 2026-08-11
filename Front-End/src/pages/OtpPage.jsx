@@ -13,10 +13,10 @@ import "./OtpPage.css";
  *   { email, userName, role, token, user }
  *
  * Flow:
- *  1. On mount, calls /api/auth/send-otp so the code arrives in the inbox.
- *  2. User types 6 digits (auto-focus jumps between boxes).
- *  3. On submit, calls /api/auth/verify-otp.
- *  4. On success, commits token + user to localStorage and redirects to dashboard.
+ *  1. User arrives on OTP page after login/signup. OTP is NOT sent automatically on mount.
+ *  2. User clicks "Send OTP" button to generate & receive their 6-digit verification code.
+ *  3. User enters the 6 digits and clicks "Verify & Continue".
+ *  4. On successful verification, commits token + user to localStorage and redirects to dashboard.
  */
 export default function OtpPage() {
   const navigate = useNavigate();
@@ -28,6 +28,7 @@ export default function OtpPage() {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [otpSent, setOtpSent] = useState(false);
 
@@ -40,15 +41,12 @@ export default function OtpPage() {
     }
   }, [email, token, navigate]);
 
-  // Send OTP as soon as the page mounts
-  useEffect(() => {
-    if (email) {
-      triggerSendOtp();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // NOTE: Automatic sendOtp on mount is explicitly disabled as requested.
+  // OTP is only generated when the user clicks Send OTP / Resend OTP.
 
   async function triggerSendOtp() {
+    setError("");
+    setSendingOtp(true);
     try {
       await sendOtp(email, userName);
       setOtpSent(true);
@@ -56,8 +54,10 @@ export default function OtpPage() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Failed to send OTP. Please check your email configuration."
+          "Failed to send OTP. Please try again."
       );
+    } finally {
+      setSendingOtp(false);
     }
   }
 
@@ -117,11 +117,16 @@ export default function OtpPage() {
     inputRefs.current[focusIdx]?.focus();
   }
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── Submit Verification ─────────────────────────────────────────────────────
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    if (!otpSent) {
+      setError("Please click 'Send OTP' to receive your verification code first.");
+      return;
+    }
 
     const otp = digits.join("");
     if (otp.length < 6) {
@@ -133,7 +138,7 @@ export default function OtpPage() {
     try {
       await verifyOtp(email, otp);
 
-      // OTP verified — now commit token + user and go to the dashboard
+      // OTP verified — now commit token + user and redirect to dashboard
       localStorage.setItem("gruhinezz_token", token);
       localStorage.setItem("gruhinezz_user", JSON.stringify(user));
       navigate(`/dashboard/${user.role}`, { replace: true });
@@ -153,14 +158,15 @@ export default function OtpPage() {
     }
   }
 
-  // ── Resend ─────────────────────────────────────────────────────────────────
+  // ── Send / Resend OTP ───────────────────────────────────────────────────────
 
-  async function handleResend() {
-    if (resendCooldown > 0) return;
-    setError("");
+  async function handleSendOtpClick() {
+    if (resendCooldown > 0 || sendingOtp) return;
     setDigits(["", "", "", "", "", ""]);
-    inputRefs.current[0]?.focus();
     await triggerSendOtp();
+    setTimeout(() => {
+      inputRefs.current[0]?.focus();
+    }, 100);
   }
 
   if (!email) return null;
@@ -183,7 +189,10 @@ export default function OtpPage() {
                 Enter it below to continue.
               </>
             ) : (
-              "Sending verification code…"
+              <>
+                Click <strong>"Send OTP"</strong> below to receive your verification code for{" "}
+                <strong>{maskedEmail}</strong>.
+              </>
             )}
           </p>
         </div>
@@ -199,7 +208,7 @@ export default function OtpPage() {
               inputMode="numeric"
               maxLength={1}
               value={d}
-              autoFocus={i === 0}
+              disabled={!otpSent}
               onChange={(e) => handleDigitChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
               aria-label={`OTP digit ${i + 1}`}
@@ -209,27 +218,41 @@ export default function OtpPage() {
 
         {error && <p className="auth-form__error">{error}</p>}
 
-        <PrimaryButton type="submit" disabled={loading}>
-          Verify & Continue
-        </PrimaryButton>
+        {/* Action Button */}
+        {!otpSent ? (
+          <PrimaryButton
+            type="button"
+            onClick={handleSendOtpClick}
+            disabled={sendingOtp}
+          >
+            {sendingOtp ? "Sending OTP..." : "Send OTP"}
+          </PrimaryButton>
+        ) : (
+          <PrimaryButton type="submit" disabled={loading}>
+            {loading ? "Verifying..." : "Verify & Continue"}
+          </PrimaryButton>
+        )}
 
-        {/* Resend */}
-        <p className="auth-form__switch">
-          Didn't receive the code?{" "}
-          {resendCooldown > 0 ? (
-            <span className="otp-resend-timer">
-              Resend in {resendCooldown}s
-            </span>
-          ) : (
-            <button
-              type="button"
-              className="otp-resend-btn"
-              onClick={handleResend}
-            >
-              Resend OTP
-            </button>
-          )}
-        </p>
+        {/* Resend Link / Countdown Timer */}
+        {otpSent && (
+          <p className="auth-form__switch">
+            Didn't receive the code?{" "}
+            {resendCooldown > 0 ? (
+              <span className="otp-resend-timer">
+                Resend in {resendCooldown}s
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="otp-resend-btn"
+                onClick={handleSendOtpClick}
+                disabled={sendingOtp}
+              >
+                {sendingOtp ? "Sending..." : "Resend OTP"}
+              </button>
+            )}
+          </p>
+        )}
       </form>
     </AuthLayout>
   );
