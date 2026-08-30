@@ -15,6 +15,9 @@ import NgoIdentityPage from "../ngosetup/NgoIdentityPage";
 import NgoContactPage from "../ngosetup/NgoContactPage";
 import NgoLegalPage from "../ngosetup/NgoLegalPage";
 
+import AdminLoginPage from "../pages/AdminLoginPage";
+import AdminDashboardPage from "../pages/AdminDashboardPage";
+
 import { checkSession } from "../services/authService";
 
 /**
@@ -24,6 +27,16 @@ function PrivateRoute({ children }) {
   const token = localStorage.getItem("gruhinezz_token");
   const stored = localStorage.getItem("gruhinezz_user");
   return token || stored ? children : <Navigate to="/login" replace />;
+}
+
+function AdminPrivateRoute({ children }) {
+  const adminToken = localStorage.getItem("gruhinezz_admin_token");
+  return adminToken ? children : <Navigate to="/admin" replace />;
+}
+
+function AdminLoginRoute() {
+  const adminToken = localStorage.getItem("gruhinezz_admin_token");
+  return adminToken ? <Navigate to="/admin/dashboard" replace /> : <AdminLoginPage />;
 }
 
 export default function AppRoutes() {
@@ -216,6 +229,18 @@ export default function AppRoutes() {
           <PrivateRoute>
             <NgoLegalPage />
           </PrivateRoute>
+        }
+      />
+
+      {/* Admin Routes — Isolated directly at /admin */}
+      <Route path="/admin" element={<AdminLoginRoute />} />
+      <Route path="/admin/login" element={<Navigate to="/admin" replace />} />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <AdminPrivateRoute>
+            <AdminDashboardPage />
+          </AdminPrivateRoute>
         }
       />
 

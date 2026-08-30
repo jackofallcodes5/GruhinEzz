@@ -91,6 +91,7 @@ async function login(req, res) {
         role: user.role,
         userName: user.user_name,
         email: user.email,
+        isVerified: Boolean(user.is_verified),
       },
       token,
     });
@@ -122,6 +123,7 @@ async function checkSession(req, res) {
         userName: session.user_name,
         email: session.email,
         contactNo: session.contact_no,
+        isVerified: Boolean(session.is_verified),
       },
     });
   } catch (err) {
@@ -150,6 +152,7 @@ async function me(req, res) {
         userName: user.user_name,
         email: user.email,
         contactNo: user.contact_no,
+        isVerified: Boolean(user.is_verified),
       },
     });
   } catch (err) {

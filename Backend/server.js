@@ -8,6 +8,7 @@ const authRoutes = require("./routes/authRoutes");
 const sellerSetupRoutes = require("./routes/sellerSetupRoutes");
 const ngoSetupRoutes = require("./routes/ngoSetupRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/seller-setup", sellerSetupRoutes);
 app.use("/api/ngo-setup", ngoSetupRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Fallback 404
 app.use((req, res) => {
