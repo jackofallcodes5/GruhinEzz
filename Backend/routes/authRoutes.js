@@ -1,5 +1,5 @@
 const express = require("express");
-const { signup, login, me } = require("../controllers/authController");
+const { signup, login, checkSession, logout, me } = require("../controllers/authController");
 const { sendOtp, verifyOtpHandler } = require("../controllers/otpController");
 const { requireAuth } = require("../middleware/authMiddleware");
 
@@ -7,9 +7,11 @@ const router = express.Router();
 
 router.post("/signup", signup);
 router.post("/login", login);
-router.get("/me", requireAuth, me); // used by the dashboard to confirm the session
+router.get("/check-session", checkSession);
+router.post("/logout", logout);
+router.get("/me", requireAuth, me);
 
-// OTP — no auth required (called right after signup/login, before token is stored)
+// OTP Verification endpoints
 router.post("/send-otp", sendOtp);
 router.post("/verify-otp", verifyOtpHandler);
 

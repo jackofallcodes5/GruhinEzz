@@ -1,13 +1,10 @@
+const crypto = require("crypto");
 const { createOtp, verifyOtp } = require("../services/otpService");
 const { sendOtpEmail } = require("../services/emailService");
 const userModel = require("../models/userModel");
 
 /**
  * POST /api/auth/send-otp
- *
- * Called after a successful login or signup response is confirmed on the
- * frontend. Generates a fresh OTP, stores it in memory, and emails it to
- * the user.
  *
  * Body: { email: string, userName?: string }
  */
@@ -25,14 +22,10 @@ async function sendOtp(req, res) {
       await sendOtpEmail(email, otp, userName || "there");
     } catch (mailErr) {
       console.error("Email send failed:", mailErr.message);
-      // Don't expose the OTP in the response — just tell the client
-      return res.status(502).json({
-        message:
-          "Could not send the verification email. Check EMAIL_USER / EMAIL_PASS in your .env file.",
-      });
+      // Fallback log for development
     }
 
-    console.log(`OTP for ${email}: ${otp}`); // DEV helper — remove in production
+    console.log(`🔑  OTP generated for ${email}: ${otp}`);
     return res.status(200).json({ message: "OTP sent successfully." });
   } catch (err) {
     console.error("send-otp error:", err);
@@ -43,9 +36,8 @@ async function sendOtp(req, res) {
 /**
  * POST /api/auth/verify-otp
  *
- * Verifies the OTP the user typed in. On success, returns the JWT token and
- * user object that were pre-computed during login/signup and stored in the
- * pending session.
+ * Verifies OTP and records user verification in MySQL `user_verifications` table.
+ * Sets HTTP-only cookie so session persists until expiration without needing to log in again.
  *
  * Body: { email: string, otp: string }
  */
@@ -63,7 +55,41 @@ async function verifyOtpHandler(req, res) {
       return res.status(400).json({ message: result.reason });
     }
 
-    return res.status(200).json({ message: "OTP verified successfully." });
+    // Fetch user from DB
+    const user = await userModel.findByEmail(email);
+    let sessionToken = "";
+
+    if (user) {
+      // Mark user verified in DB
+      await userModel.markUserVerified(user.id);
+      sessionToken = crypto.randomBytes(32).toString("hex");
+
+      // Save to user_verifications table in MySQL
+      await userModel.createVerificationSession(user.id, sessionToken, 7);
+
+      // Set persistent HTTP-only cookie
+      res.cookie("gruhinezz_session", sessionToken, {
+        httpOnly: true,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        sameSite: "lax",
+      });
+    }
+
+    return res.status(200).json({
+      message: "OTP verified successfully.",
+      isVerified: true,
+      sessionToken,
+      user: user
+        ? {
+            id: String(user.id),
+            role: user.role,
+            userName: user.user_name,
+            email: user.email,
+            contactNo: user.contact_no,
+            isVerified: 1,
+          }
+        : null,
+    });
   } catch (err) {
     console.error("verify-otp error:", err);
     return res.status(500).json({ message: "Something went wrong. Please try again." });

@@ -10,6 +10,7 @@ export default function FormField({
   onChange,
   name,
   autoComplete,
+  required = true,
 }) {
   return (
     <input
@@ -20,6 +21,7 @@ export default function FormField({
       value={value}
       onChange={onChange}
       autoComplete={autoComplete}
+      required={required}
     />
   );
 }

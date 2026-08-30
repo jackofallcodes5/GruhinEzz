@@ -7,7 +7,7 @@ const VALID_ROLES = ["buyer", "seller", "ngo"];
 function signToken(user) {
   return jwt.sign(
     { id: user.id, role: user.role },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || "gruhinezz_jwt_secret_key",
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
 }
@@ -15,7 +15,6 @@ function signToken(user) {
 // POST /api/auth/signup
 async function signup(req, res) {
   try {
-    console.log("SIGNUP BODY:", req.body); // TEMP DEBUG — remove after fixing
     const { role, userName, email, password, contactNo } = req.body;
 
     if (!role || !userName || !email || !password || !contactNo) {
@@ -74,7 +73,6 @@ async function login(req, res) {
       return res.status(400).json({ message: "Invalid role." });
     }
 
-    // role is checked against the stored account so a Seller can't log in via the NGO tab, etc.
     const user = await userModel.findByEmailAndRole(email, role);
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password." });
@@ -102,7 +100,43 @@ async function login(req, res) {
   }
 }
 
-// GET /api/auth/me  (used by the dashboard page to fetch the logged-in user from the token)
+// GET /api/auth/check-session
+async function checkSession(req, res) {
+  try {
+    const sessionToken = req.cookies?.gruhinezz_session || req.headers.authorization?.replace("Bearer ", "");
+    if (!sessionToken) {
+      return res.status(200).json({ authenticated: false, isVerified: false });
+    }
+
+    const session = await userModel.getVerificationSession(sessionToken);
+    if (!session) {
+      return res.status(200).json({ authenticated: false, isVerified: false });
+    }
+
+    return res.status(200).json({
+      authenticated: true,
+      isVerified: true,
+      user: {
+        id: String(session.id),
+        role: session.role,
+        userName: session.user_name,
+        email: session.email,
+        contactNo: session.contact_no,
+      },
+    });
+  } catch (err) {
+    console.error("checkSession error:", err);
+    return res.status(200).json({ authenticated: false, isVerified: false });
+  }
+}
+
+// POST /api/auth/logout
+async function logout(req, res) {
+  res.clearCookie("gruhinezz_session");
+  return res.status(200).json({ message: "Logged out successfully." });
+}
+
+// GET /api/auth/me
 async function me(req, res) {
   try {
     const user = await userModel.findById(req.userId);
@@ -124,4 +158,4 @@ async function me(req, res) {
   }
 }
 
-module.exports = { signup, login, me };
+module.exports = { signup, login, checkSession, logout, me };

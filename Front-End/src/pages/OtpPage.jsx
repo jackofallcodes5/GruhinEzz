@@ -136,12 +136,25 @@ export default function OtpPage() {
 
     setLoading(true);
     try {
-      await verifyOtp(email, otp);
+      const verifyData = await verifyOtp(email, otp);
 
-      // OTP verified — now commit token + user and redirect to dashboard
+      // OTP verified — store token + user, plus session token for persistent login
       localStorage.setItem("gruhinezz_token", token);
-      localStorage.setItem("gruhinezz_user", JSON.stringify(user));
-      navigate(`/dashboard/${user.role}`, { replace: true });
+      const userToStore = verifyData?.user || user;
+      localStorage.setItem("gruhinezz_user", JSON.stringify(userToStore));
+      // Store session token so app can skip login on next visit
+      if (verifyData?.sessionToken) {
+        localStorage.setItem("gruhinezz_session", verifyData.sessionToken);
+      }
+
+      // Directly redirect based on role
+      if (userToStore.role === "seller") {
+        navigate("/seller/setup/info", { replace: true });
+      } else if (userToStore.role === "ngo") {
+        navigate("/ngo/setup/identity", { replace: true });
+      } else {
+        navigate("/dashboard/buyer", { replace: true });
+      }
     } catch (err) {
       setError(
         err.response?.data?.message || "Incorrect OTP. Please try again."

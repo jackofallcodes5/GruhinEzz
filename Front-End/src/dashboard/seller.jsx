@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../services/authService";
+import logoImg from "../assets/logo.png";
 import "./dashboard.css";
 
 export default function SellerDashboard() {
@@ -21,20 +23,18 @@ export default function SellerDashboard() {
     setUser(parsed);
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("gruhinezz_token");
-    localStorage.removeItem("gruhinezz_user");
+  const handleLogout = async () => {
+    await logoutUser();
     navigate("/login", { replace: true });
   };
 
   if (!user) return null;
 
   const navItems = [
-    { icon: "🏠", label: "Overview" },
-    { icon: "➕", label: "Add Property" },
-    { icon: "📦", label: "My Listings" },
-    { icon: "📩", label: "Enquiries" },
-    { icon: "📊", label: "Analytics" },
+    { icon: "🏠", label: "Overview", active: true },
+    { icon: "📦", label: "My Products" },
+    { icon: "📩", label: "Orders" },
+    { icon: "💰", label: "Earnings" },
     { icon: "⚙️", label: "Settings" },
   ];
 
@@ -42,14 +42,20 @@ export default function SellerDashboard() {
     <div className="dashboard-page">
       {/* ── Sidebar ── */}
       <div className={`dashboard-sidebar ${mobileNavOpen ? "dashboard-sidebar--open" : ""}`}>
-        <div className="dashboard-logo">GruhinEzz</div>
+        <div className="flex items-center gap-2 px-4 pb-5 pt-2 border-b border-[#e2d3c8]">
+          <img src={logoImg} alt="GruhinEzz" className="h-8 w-auto object-contain" />
+          <div>
+            <div className="dashboard-logo" style={{ padding: 0, border: "none", marginBottom: 0 }}>GruhinEzz</div>
+            <p className="text-[10px] text-[#7a6070]">Seller Portal</p>
+          </div>
+        </div>
         <nav className="dashboard-nav">
           {navItems.map((item, idx) => (
             <a
               key={idx}
               href="#"
-              className={`dashboard-nav__item${idx === 0 ? " active" : ""}`}
-              onClick={() => setMobileNavOpen(false)}
+              className={`dashboard-nav__item${item.active ? " active" : ""}`}
+              onClick={(e) => { e.preventDefault(); setMobileNavOpen(false); }}
             >
               {item.icon} {item.label}
             </a>
@@ -60,12 +66,11 @@ export default function SellerDashboard() {
         </button>
       </div>
 
-      {/* Mobile overlay */}
       {mobileNavOpen && (
         <div className="dashboard-overlay" onClick={() => setMobileNavOpen(false)} />
       )}
 
-      <main className="dashboard-main">
+      <main className="dashboard-main flex-1 flex flex-col">
         {/* Mobile header */}
         <div className="dashboard-mobile-header">
           <button
@@ -84,10 +89,10 @@ export default function SellerDashboard() {
         <header className="dashboard-header">
           <div>
             <h1 className="dashboard-header__title">
-              Welcome back, {user.userName}! 👋
+              Welcome, {user.userName}! 🌸
             </h1>
             <p className="dashboard-header__subtitle">
-              Manage your property listings and respond to buyers.
+              GruhinEzz Seller Portal — Household Women Entrepreneurs
             </p>
           </div>
           <div className="dashboard-avatar">
@@ -95,42 +100,21 @@ export default function SellerDashboard() {
           </div>
         </header>
 
-        <div className="dashboard-stats">
-          <div className="stat-card">
-            <span className="stat-card__icon">🏘️</span>
-            <div>
-              <p className="stat-card__value">0</p>
-              <p className="stat-card__label">Active Listings</p>
+        {/* Blank Dashboard Container */}
+        <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
+          <div className="bg-white border border-[#e2d3c8] rounded-3xl p-8 sm:p-12 max-w-xl text-center shadow-xs space-y-4">
+            <div className="w-16 h-16 bg-[#f5ece6] text-[#48154c] rounded-2xl flex items-center justify-center text-3xl mx-auto">
+              🌸
             </div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-card__icon">📩</span>
-            <div>
-              <p className="stat-card__value">0</p>
-              <p className="stat-card__label">New Enquiries</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#2d2130] font-serif">
+              Seller Account Verified & Setup Complete
+            </h2>
+            <p className="text-sm text-[#7a6070] leading-relaxed">
+              Your 3-step seller profile is active. This blank dashboard is ready to display your product listings, active orders, and sales reports as new features are released.
+            </p>
+            <div className="pt-4 border-t border-[#e2d3c8] text-xs text-[#48154c] font-medium">
+              Registered Seller: <strong className="text-[#ae3a65]">{user.userName}</strong> ({user.email})
             </div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-card__icon">👁️</span>
-            <div>
-              <p className="stat-card__value">0</p>
-              <p className="stat-card__label">Total Views</p>
-            </div>
-          </div>
-          <div className="stat-card">
-            <span className="stat-card__icon">✅</span>
-            <div>
-              <p className="stat-card__value">0</p>
-              <p className="stat-card__label">Deals Closed</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="dashboard-section">
-          <h2 className="dashboard-section__title">My Listings</h2>
-          <div className="dashboard-empty">
-            <span className="dashboard-empty__icon">🏘️</span>
-            <p>You haven't listed any properties yet. Click "Add Property" to get started.</p>
           </div>
         </div>
       </main>
