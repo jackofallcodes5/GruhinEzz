@@ -19,11 +19,12 @@ async function findByEmailAndRole(email, role) {
 }
 
 async function createUser({ role, userName, email, passwordHash, contactNo }) {
+  const isVerified = role === "buyer";
   const { rows } = await pool.query(
-    `INSERT INTO users (role, user_name, email, password_hash, contact_no)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, role, user_name AS "userName", email, contact_no AS "contactNo"`,
-    [role, userName, email, passwordHash, contactNo]
+    `INSERT INTO users (role, user_name, email, password_hash, contact_no, is_verified)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, role, user_name AS "userName", email, contact_no AS "contactNo", is_verified AS "isVerified"`,
+    [role, userName, email, passwordHash, contactNo, isVerified]
   );
   return rows[0];
 }

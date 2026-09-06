@@ -383,46 +383,84 @@ export default function AdminDashboardPage() {
                         {/* Uploaded Files */}
                         <td className="py-4 px-4 align-top space-y-2">
                           <div>
-                            <span className="text-[10px] text-[#C79AA7] block mb-1">Identity Proof:</span>
+                            <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">Identity Proof:</span>
                             {seller.id_proof_url ? (
-                              <button
-                                onClick={() =>
-                                  setPreviewDoc({
-                                    title: `Identity Proof (${seller.id_type || "ID Document"})`,
-                                    fileName: seller.id_proof_url,
-                                    fileUrl: seller.id_proof_url,
-                                    uploader: seller.full_name || seller.user_name,
-                                  })
-                                }
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#7A1F49]/40 hover:bg-[#7A1F49] text-pink-200 border border-[#7A1F49] text-[11px] transition-colors"
-                              >
-                                <Eye size={13} />
-                                View ID Proof
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() =>
+                                    setPreviewDoc({
+                                      title: `Identity Proof (${seller.id_type || "ID Document"})`,
+                                      fileName: seller.id_proof_url.startsWith("S-") ? seller.id_proof_url : `S-IDProof-${seller.user_id}.pdf`,
+                                      fileUrl: `/api/documents/view/${seller.id_proof_url}`,
+                                      uploader: seller.full_name || seller.user_name,
+                                      userId: seller.user_id,
+                                    })
+                                  }
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-[#7A1F49]/40 hover:bg-[#7A1F49] text-pink-200 border border-[#7A1F49] text-[11px] transition-colors"
+                                  title="Review Document"
+                                >
+                                  <Eye size={12} />
+                                  View
+                                </button>
+                                <a
+                                  href={`http://localhost:5000/api/documents/download/${seller.id_proof_url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
+                                  title="Download Document"
+                                >
+                                  <Download size={12} />
+                                  Download
+                                </a>
+                              </div>
                             ) : (
                               <span className="text-[#8A5468] text-[11px]">No file</span>
+                            )}
+                            {seller.id_proof_url && (
+                              <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
+                                {seller.id_proof_url.startsWith("S-") ? seller.id_proof_url : `S-IDProof-${seller.user_id}.pdf`}
+                              </span>
                             )}
                           </div>
 
                           <div>
-                            <span className="text-[10px] text-[#C79AA7] block mb-1">Store Logo:</span>
+                            <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">Store Logo:</span>
                             {seller.store_logo_url ? (
-                              <button
-                                onClick={() =>
-                                  setPreviewDoc({
-                                    title: "Store Logo Document",
-                                    fileName: seller.store_logo_url,
-                                    fileUrl: seller.store_logo_url,
-                                    uploader: seller.store_name || seller.user_name,
-                                  })
-                                }
-                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#7A1F49]/40 hover:bg-[#7A1F49] text-pink-200 border border-[#7A1F49] text-[11px] transition-colors"
-                              >
-                                <Eye size={13} />
-                                View Logo
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() =>
+                                    setPreviewDoc({
+                                      title: "Store Logo Document",
+                                      fileName: seller.store_logo_url.startsWith("S-") ? seller.store_logo_url : `S-StoreLogo-${seller.user_id}.png`,
+                                      fileUrl: `/api/documents/view/${seller.store_logo_url}`,
+                                      uploader: seller.store_name || seller.user_name,
+                                      userId: seller.user_id,
+                                    })
+                                  }
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-[#7A1F49]/40 hover:bg-[#7A1F49] text-pink-200 border border-[#7A1F49] text-[11px] transition-colors"
+                                  title="Review Document"
+                                >
+                                  <Eye size={12} />
+                                  View
+                                </button>
+                                <a
+                                  href={`http://localhost:5000/api/documents/download/${seller.store_logo_url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
+                                  title="Download Document"
+                                >
+                                  <Download size={12} />
+                                  Download
+                                </a>
+                              </div>
                             ) : (
                               <span className="text-[#8A5468] text-[11px]">No file</span>
+                            )}
+                            {seller.store_logo_url && (
+                              <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
+                                {seller.store_logo_url.startsWith("S-") ? seller.store_logo_url : `S-StoreLogo-${seller.user_id}.png`}
+                              </span>
                             )}
                           </div>
                         </td>
@@ -563,69 +601,137 @@ export default function AdminDashboardPage() {
                         </td>
 
                         {/* Uploaded Legal Docs */}
-                        <td className="py-4 px-4 align-top space-y-1.5">
+                        <td className="py-4 px-4 align-top space-y-2">
                           {ngo.reg_cert_url && (
-                            <button
-                              onClick={() =>
-                                setPreviewDoc({
-                                  title: "NGO Registration Certificate",
-                                  fileName: ngo.reg_cert_url,
-                                  fileUrl: ngo.reg_cert_url,
-                                  uploader: ngo.ngo_name || ngo.user_name,
-                                })
-                              }
-                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[11px] transition-colors w-full"
-                            >
-                              <FileText size={13} /> Reg Certificate
-                            </button>
+                            <div>
+                              <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">Reg Certificate:</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() =>
+                                    setPreviewDoc({
+                                      title: "NGO Registration Certificate",
+                                      fileName: ngo.reg_cert_url.startsWith("N-") ? ngo.reg_cert_url : `N-RegistrationCertificate-${ngo.user_id}.pdf`,
+                                      fileUrl: `/api/documents/view/${ngo.reg_cert_url}`,
+                                      uploader: ngo.ngo_name || ngo.user_name,
+                                      userId: ngo.user_id,
+                                    })
+                                  }
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[11px] transition-colors"
+                                >
+                                  <Eye size={12} /> View
+                                </button>
+                                <a
+                                  href={`http://localhost:5000/api/documents/download/${ngo.reg_cert_url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
+                                >
+                                  <Download size={12} /> Download
+                                </a>
+                              </div>
+                              <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
+                                {ngo.reg_cert_url.startsWith("N-") ? ngo.reg_cert_url : `N-RegistrationCertificate-${ngo.user_id}.pdf`}
+                              </span>
+                            </div>
                           )}
 
                           {ngo.pan_card_url && (
-                            <button
-                              onClick={() =>
-                                setPreviewDoc({
-                                  title: "NGO PAN Card Document",
-                                  fileName: ngo.pan_card_url,
-                                  fileUrl: ngo.pan_card_url,
-                                  uploader: ngo.ngo_name || ngo.user_name,
-                                })
-                              }
-                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[11px] transition-colors w-full"
-                            >
-                              <FileText size={13} /> PAN Card
-                            </button>
+                            <div>
+                              <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">PAN Card:</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() =>
+                                    setPreviewDoc({
+                                      title: "NGO PAN Card Document",
+                                      fileName: ngo.pan_card_url.startsWith("N-") ? ngo.pan_card_url : `N-PAN-${ngo.user_id}.pdf`,
+                                      fileUrl: `/api/documents/view/${ngo.pan_card_url}`,
+                                      uploader: ngo.ngo_name || ngo.user_name,
+                                      userId: ngo.user_id,
+                                    })
+                                  }
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[11px] transition-colors"
+                                >
+                                  <Eye size={12} /> View
+                                </button>
+                                <a
+                                  href={`http://localhost:5000/api/documents/download/${ngo.pan_card_url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
+                                >
+                                  <Download size={12} /> Download
+                                </a>
+                              </div>
+                              <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
+                                {ngo.pan_card_url.startsWith("N-") ? ngo.pan_card_url : `N-PAN-${ngo.user_id}.pdf`}
+                              </span>
+                            </div>
                           )}
 
                           {ngo.cert_80g_12a_url && (
-                            <button
-                              onClick={() =>
-                                setPreviewDoc({
-                                  title: "80G / 12A Tax Exemption Certificate",
-                                  fileName: ngo.cert_80g_12a_url,
-                                  fileUrl: ngo.cert_80g_12a_url,
-                                  uploader: ngo.ngo_name || ngo.user_name,
-                                })
-                              }
-                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[11px] transition-colors w-full"
-                            >
-                              <FileText size={13} /> 80G/12A Cert
-                            </button>
+                            <div>
+                              <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">80G / 12A Cert:</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() =>
+                                    setPreviewDoc({
+                                      title: "80G / 12A Tax Exemption Certificate",
+                                      fileName: ngo.cert_80g_12a_url.startsWith("N-") ? ngo.cert_80g_12a_url : `N-Cert80G12A-${ngo.user_id}.pdf`,
+                                      fileUrl: `/api/documents/view/${ngo.cert_80g_12a_url}`,
+                                      uploader: ngo.ngo_name || ngo.user_name,
+                                      userId: ngo.user_id,
+                                    })
+                                  }
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[11px] transition-colors"
+                                >
+                                  <Eye size={12} /> View
+                                </button>
+                                <a
+                                  href={`http://localhost:5000/api/documents/download/${ngo.cert_80g_12a_url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
+                                >
+                                  <Download size={12} /> Download
+                                </a>
+                              </div>
+                              <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
+                                {ngo.cert_80g_12a_url.startsWith("N-") ? ngo.cert_80g_12a_url : `N-Cert80G12A-${ngo.user_id}.pdf`}
+                              </span>
+                            </div>
                           )}
 
                           {ngo.contact_id_proof_url && (
-                            <button
-                              onClick={() =>
-                                setPreviewDoc({
-                                  title: "Contact Person ID Proof",
-                                  fileName: ngo.contact_id_proof_url,
-                                  fileUrl: ngo.contact_id_proof_url,
-                                  uploader: ngo.contact_person_name || ngo.user_name,
-                                })
-                              }
-                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[11px] transition-colors w-full"
-                            >
-                              <Eye size={13} /> Representative ID Proof
-                            </button>
+                            <div>
+                              <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">Contact Person ID:</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() =>
+                                    setPreviewDoc({
+                                      title: "Contact Person ID Proof",
+                                      fileName: ngo.contact_id_proof_url.startsWith("N-") ? ngo.contact_id_proof_url : `N-ContactID-${ngo.user_id}.pdf`,
+                                      fileUrl: `/api/documents/view/${ngo.contact_id_proof_url}`,
+                                      uploader: ngo.contact_person_name || ngo.user_name,
+                                      userId: ngo.user_id,
+                                    })
+                                  }
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[11px] transition-colors"
+                                >
+                                  <Eye size={12} /> View
+                                </button>
+                                <a
+                                  href={`http://localhost:5000/api/documents/download/${ngo.contact_id_proof_url}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
+                                >
+                                  <Download size={12} /> Download
+                                </a>
+                              </div>
+                              <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
+                                {ngo.contact_id_proof_url.startsWith("N-") ? ngo.contact_id_proof_url : `N-ContactID-${ngo.user_id}.pdf`}
+                              </span>
+                            </div>
                           )}
 
                           {!ngo.reg_cert_url && !ngo.pan_card_url && !ngo.contact_id_proof_url && (
@@ -712,7 +818,7 @@ export default function AdminDashboardPage() {
             <div className="p-6 bg-[#1F0E18] space-y-4">
               <div className="p-4 bg-[#2D1623] border border-[#4A2338] rounded-2xl flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-[#C79AA7] block">File Name / Document String:</span>
+                  <span className="text-xs text-[#C79AA7] block">System Filename / Record:</span>
                   <span className="font-mono text-sm font-semibold text-pink-300 break-all">
                     {previewDoc.fileName}
                   </span>
@@ -727,18 +833,24 @@ export default function AdminDashboardPage() {
                 <FileText size={48} className="text-[#7A1F49] mb-3 animate-pulse" />
                 <h4 className="text-sm font-semibold text-white">Verification Document Loaded</h4>
                 <p className="text-xs text-[#C79AA7] max-w-sm mt-1">
-                  Official verification record for <span className="text-pink-300">{previewDoc.title}</span>. Document details match user identity records in GruhinEzz MySQL database.
+                  Official verification record for <span className="text-pink-300">{previewDoc.title}</span> ({previewDoc.fileName}). Document details match user records in database.
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      alert(`Viewing uploaded document source: ${previewDoc.fileName}`);
-                    }}
+                    href={`http://localhost:5000/api/documents/download/${previewDoc.fileName}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors"
+                  >
+                    <Download size={14} /> Download Individual Document
+                  </a>
+                  <a
+                    href={`http://localhost:5000/api/documents/view/${previewDoc.fileName}`}
+                    target="_blank"
+                    rel="noreferrer"
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#7A1F49] hover:bg-[#ae3a65] text-white text-xs font-semibold transition-colors"
                   >
-                    <ExternalLink size={14} /> Open Full Document
+                    <ExternalLink size={14} /> View Document
                   </a>
                 </div>
               </div>
@@ -749,7 +861,7 @@ export default function AdminDashboardPage() {
                 onClick={() => setPreviewDoc(null)}
                 className="px-5 py-2 rounded-xl bg-[#3D1D30] hover:bg-[#5E2546] text-white text-xs font-semibold transition-colors"
               >
-                Close Preview
+                Close Review
               </button>
             </div>
           </div>

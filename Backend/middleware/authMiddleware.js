@@ -1,8 +1,6 @@
 const jwt = require("jsonwebtoken");
+const userModel = require("../models/userModel");
 
-// Reads "Authorization: Bearer <token>" (this is exactly what apiClient.js
-// on the frontend already attaches), verifies it, and attaches the user id
-// to the request so the dashboard/me route can look the user up.
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
   const [scheme, token] = header.split(" ");
@@ -12,7 +10,7 @@ function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET || "gruhinezz_jwt_secret_key");
     req.userId = payload.id;
     req.userRole = payload.role;
     next();
@@ -21,4 +19,33 @@ function requireAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth };
+async function requireVerified(req, res, next) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Authentication required." });
+    }
+    // Buyers do not require admin verification
+    if (req.userRole === "buyer") {
+      return next();
+    }
+
+    const user = await userModel.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (!user.is_verified) {
+      return res.status(403).json({
+        message: "Your account is currently under verification. Please review your submitted information. You will get access to your dashboard once your account is verified.",
+        isVerified: false,
+      });
+    }
+
+    next();
+  } catch (err) {
+    console.error("requireVerified error:", err);
+    return res.status(500).json({ message: "Verification check failed." });
+  }
+}
+
+module.exports = { requireAuth, requireVerified };

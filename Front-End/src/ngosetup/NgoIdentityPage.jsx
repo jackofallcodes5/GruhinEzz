@@ -265,10 +265,29 @@ export default function NgoIdentityPage() {
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const handleLogoUpload = (e) => {
+  const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setLogoName(file.name);
+    if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("role", "ngo");
+      formData.append("docType", "Logo");
+      formData.append("userId", user?.id || "00000");
+
+      const res = await apiClient.post("/upload/document", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data?.filename) {
+        setLogoName(res.data.filename);
+        setLogoUploaded(true);
+      }
+    } catch (err) {
+      console.error("NGO Logo upload error:", err);
+      const ext = file.name.substring(file.name.lastIndexOf("."));
+      setLogoName(`N-Logo-${user?.id || "00000"}${ext}`);
       setLogoUploaded(true);
     }
   };
@@ -281,7 +300,7 @@ export default function NgoIdentityPage() {
       await apiClient.post("/ngo-setup/identity", {
         userId,
         ...form,
-        logoUrl: logoName || "ngo_logo.png",
+        logoUrl: logoName || `N-Logo-${userId}.png`,
       });
       navigate("/ngo/setup/contact");
     } catch (err) {
@@ -300,12 +319,22 @@ export default function NgoIdentityPage() {
         <TopBar onMenu={() => setMenuOpen(true)} userName={user?.userName} />
 
         <main className="flex-1 px-4 sm:px-8 py-6 sm:py-8">
-          <div className="mb-6 bg-[#FDF2EF] border border-[#F1DDD9] rounded-2xl p-4 flex items-center justify-between text-xs text-[#5E1638]">
-            <div className="flex items-center gap-2">
-              <Lock size={16} className="text-[#7A1F49]" />
-              <span><strong>Mandatory Setup:</strong> NGO portal features are locked until all 3 steps are completed.</span>
+          {/* Verification Status Banner */}
+          <div className="mb-6 bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 shadow-xs">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-200 rounded-xl text-amber-800 shrink-0 mt-0.5">
+                <Lock size={18} />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-amber-950">Verification Status: Unverified</h4>
+                <p className="text-xs text-amber-900 leading-relaxed mt-0.5">
+                  <strong>Your account is currently under verification. Please review your submitted information. You will get access to your dashboard once your account is verified.</strong>
+                </p>
+              </div>
             </div>
-            <span className="font-bold text-[#7A1F49] px-2.5 py-1 bg-white rounded-lg border border-[#E9CDD3]">Step 1 / 3</span>
+            <span className="font-bold text-[#7A1F49] px-3 py-1 bg-white rounded-xl border border-[#E9CDD3] text-xs shrink-0">
+              Step 1 / 3
+            </span>
           </div>
 
           <Stepper current={1} />

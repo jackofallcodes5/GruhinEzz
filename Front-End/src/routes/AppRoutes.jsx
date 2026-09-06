@@ -29,6 +29,60 @@ function PrivateRoute({ children }) {
   return token || stored ? children : <Navigate to="/login" replace />;
 }
 
+function VerifiedSellerRoute({ children }) {
+  const token = localStorage.getItem("gruhinezz_token");
+  const stored = localStorage.getItem("gruhinezz_user");
+  if (!token && !stored) return <Navigate to="/login" replace />;
+  try {
+    const u = JSON.parse(stored);
+    if (u.role === "seller" && !u.isVerified) {
+      return <Navigate to="/seller/setup/info" replace />;
+    }
+  } catch (e) {}
+  return children;
+}
+
+function VerifiedNgoRoute({ children }) {
+  const token = localStorage.getItem("gruhinezz_token");
+  const stored = localStorage.getItem("gruhinezz_user");
+  if (!token && !stored) return <Navigate to="/login" replace />;
+  try {
+    const u = JSON.parse(stored);
+    if (u.role === "ngo" && !u.isVerified) {
+      return <Navigate to="/ngo/setup/identity" replace />;
+    }
+  } catch (e) {}
+  return children;
+}
+
+function UnverifiedSellerSetupRoute({ children }) {
+  const stored = localStorage.getItem("gruhinezz_user");
+  if (stored) {
+    try {
+      const u = JSON.parse(stored);
+      // Once verified, setup pages are hidden and redirect directly to dashboard
+      if (u.role === "seller" && u.isVerified) {
+        return <Navigate to="/dashboard/seller" replace />;
+      }
+    } catch (e) {}
+  }
+  return children;
+}
+
+function UnverifiedNgoSetupRoute({ children }) {
+  const stored = localStorage.getItem("gruhinezz_user");
+  if (stored) {
+    try {
+      const u = JSON.parse(stored);
+      // Once verified, setup pages are hidden and redirect directly to dashboard
+      if (u.role === "ngo" && u.isVerified) {
+        return <Navigate to="/dashboard/ngo" replace />;
+      }
+    } catch (e) {}
+  }
+  return children;
+}
+
 function AdminPrivateRoute({ children }) {
   const adminToken = localStorage.getItem("gruhinezz_admin_token");
   return adminToken ? children : <Navigate to="/admin" replace />;
@@ -49,7 +103,6 @@ export default function AppRoutes() {
       const existingToken = localStorage.getItem("gruhinezz_token");
       const existingUser = localStorage.getItem("gruhinezz_user");
 
-      // If already have valid local storage data, no need to check server
       if (existingToken && existingToken !== "cookie-verified-token" && existingUser) {
         try {
           const u = JSON.parse(existingUser);
@@ -59,7 +112,6 @@ export default function AppRoutes() {
         return;
       }
 
-      // Otherwise check server-side cookie session
       try {
         const sessionData = await checkSession();
         if (sessionData && sessionData.authenticated && sessionData.isVerified) {
@@ -84,17 +136,20 @@ export default function AppRoutes() {
     if (!stored && !verifiedUser) return "/login";
     try {
       const user = verifiedUser || JSON.parse(stored);
+      if (user.role === "buyer") {
+        return "/dashboard/buyer";
+      }
       if (user.role === "seller") {
-        const setupComplete = localStorage.getItem("gruhinezz_seller_setup_complete");
-        if (!setupComplete) {
+        if (!user.isVerified) {
           return "/seller/setup/info";
         }
+        return "/dashboard/seller";
       }
       if (user.role === "ngo") {
-        const setupComplete = localStorage.getItem("gruhinezz_ngo_setup_complete");
-        if (!setupComplete) {
+        if (!user.isVerified) {
           return "/ngo/setup/identity";
         }
+        return "/dashboard/ngo";
       }
       return `/dashboard/${user.role}`;
     } catch {
@@ -115,7 +170,6 @@ export default function AppRoutes() {
 
   return (
     <Routes>
-      {/* If cookie session is verified, direct redirect to dashboard without login prompt */}
       <Route
         path="/"
         element={
@@ -148,7 +202,6 @@ export default function AppRoutes() {
       />
       <Route path="/verify-otp" element={<OtpPage />} />
 
-      {/* Generic /dashboard → redirect to role-specific path */}
       <Route
         path="/dashboard"
         element={<Navigate to={getRoleDashboardPath()} replace />}
@@ -167,7 +220,9 @@ export default function AppRoutes() {
         path="/dashboard/seller"
         element={
           <PrivateRoute>
-            <SellerDashboard />
+            <VerifiedSellerRoute>
+              <SellerDashboard />
+            </VerifiedSellerRoute>
           </PrivateRoute>
         }
       />
@@ -175,7 +230,9 @@ export default function AppRoutes() {
         path="/dashboard/ngo"
         element={
           <PrivateRoute>
-            <NgoDashboard />
+            <VerifiedNgoRoute>
+              <NgoDashboard />
+            </VerifiedNgoRoute>
           </PrivateRoute>
         }
       />
@@ -185,7 +242,9 @@ export default function AppRoutes() {
         path="/seller/setup/info"
         element={
           <PrivateRoute>
-            <SellerInfoPage />
+            <UnverifiedSellerSetupRoute>
+              <SellerInfoPage />
+            </UnverifiedSellerSetupRoute>
           </PrivateRoute>
         }
       />
@@ -193,7 +252,9 @@ export default function AppRoutes() {
         path="/seller/setup/business"
         element={
           <PrivateRoute>
-            <BusinessSetupPage />
+            <UnverifiedSellerSetupRoute>
+              <BusinessSetupPage />
+            </UnverifiedSellerSetupRoute>
           </PrivateRoute>
         }
       />
@@ -201,7 +262,9 @@ export default function AppRoutes() {
         path="/seller/setup/bank"
         element={
           <PrivateRoute>
-            <BankSetupPage />
+            <UnverifiedSellerSetupRoute>
+              <BankSetupPage />
+            </UnverifiedSellerSetupRoute>
           </PrivateRoute>
         }
       />
@@ -211,7 +274,9 @@ export default function AppRoutes() {
         path="/ngo/setup/identity"
         element={
           <PrivateRoute>
-            <NgoIdentityPage />
+            <UnverifiedNgoSetupRoute>
+              <NgoIdentityPage />
+            </UnverifiedNgoSetupRoute>
           </PrivateRoute>
         }
       />
@@ -219,7 +284,9 @@ export default function AppRoutes() {
         path="/ngo/setup/contact"
         element={
           <PrivateRoute>
-            <NgoContactPage />
+            <UnverifiedNgoSetupRoute>
+              <NgoContactPage />
+            </UnverifiedNgoSetupRoute>
           </PrivateRoute>
         }
       />
@@ -227,7 +294,9 @@ export default function AppRoutes() {
         path="/ngo/setup/legal"
         element={
           <PrivateRoute>
-            <NgoLegalPage />
+            <UnverifiedNgoSetupRoute>
+              <NgoLegalPage />
+            </UnverifiedNgoSetupRoute>
           </PrivateRoute>
         }
       />

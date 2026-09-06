@@ -52,6 +52,7 @@ async function signup(req, res) {
         userName: user.userName,
         email: user.email,
         contactNo: user.contactNo,
+        isVerified: Boolean(user.isVerified),
       },
       token,
     });
