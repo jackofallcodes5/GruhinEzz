@@ -40,7 +40,7 @@ async function findById(id) {
 
 async function markUserVerified(userId) {
   await pool.query(
-    "UPDATE users SET is_verified = TRUE, updated_at = NOW() WHERE id = $1",
+    "UPDATE users SET is_verified = TRUE, updated_at = NOW() WHERE id = $1 AND role = 'buyer'",
     [userId]
   );
 }

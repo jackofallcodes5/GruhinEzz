@@ -33,12 +33,6 @@ function VerifiedSellerRoute({ children }) {
   const token = localStorage.getItem("gruhinezz_token");
   const stored = localStorage.getItem("gruhinezz_user");
   if (!token && !stored) return <Navigate to="/login" replace />;
-  try {
-    const u = JSON.parse(stored);
-    if (u.role === "seller" && !u.isVerified) {
-      return <Navigate to="/seller/setup/info" replace />;
-    }
-  } catch (e) {}
   return children;
 }
 
@@ -46,12 +40,6 @@ function VerifiedNgoRoute({ children }) {
   const token = localStorage.getItem("gruhinezz_token");
   const stored = localStorage.getItem("gruhinezz_user");
   if (!token && !stored) return <Navigate to="/login" replace />;
-  try {
-    const u = JSON.parse(stored);
-    if (u.role === "ngo" && !u.isVerified) {
-      return <Navigate to="/ngo/setup/identity" replace />;
-    }
-  } catch (e) {}
   return children;
 }
 
@@ -140,15 +128,9 @@ export default function AppRoutes() {
         return "/dashboard/buyer";
       }
       if (user.role === "seller") {
-        if (!user.isVerified) {
-          return "/seller/setup/info";
-        }
         return "/dashboard/seller";
       }
       if (user.role === "ngo") {
-        if (!user.isVerified) {
-          return "/ngo/setup/identity";
-        }
         return "/dashboard/ngo";
       }
       return `/dashboard/${user.role}`;

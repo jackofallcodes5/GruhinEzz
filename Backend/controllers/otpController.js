@@ -60,11 +60,13 @@ async function verifyOtpHandler(req, res) {
     let sessionToken = "";
 
     if (user) {
-      // Mark user verified in DB
-      await userModel.markUserVerified(user.id);
+      // Mark user verified in DB only if buyer (Sellers & NGOs remain unverified until Admin manual approval)
+      if (user.role === "buyer") {
+        await userModel.markUserVerified(user.id);
+      }
       sessionToken = crypto.randomBytes(32).toString("hex");
 
-      // Save to user_verifications table in MySQL
+      // Save to user_verifications table
       await userModel.createVerificationSession(user.id, sessionToken, 7);
 
       // Set persistent HTTP-only cookie
@@ -75,18 +77,21 @@ async function verifyOtpHandler(req, res) {
       });
     }
 
+    const dbUser = user ? await userModel.findById(user.id) : null;
+    const isUserVerified = dbUser ? Boolean(dbUser.is_verified) : false;
+
     return res.status(200).json({
       message: "OTP verified successfully.",
-      isVerified: true,
+      isVerified: isUserVerified,
       sessionToken,
-      user: user
+      user: dbUser
         ? {
-            id: String(user.id),
-            role: user.role,
-            userName: user.user_name,
-            email: user.email,
-            contactNo: user.contact_no,
-            isVerified: 1,
+            id: String(dbUser.id),
+            role: dbUser.role,
+            userName: dbUser.user_name,
+            email: dbUser.email,
+            contactNo: dbUser.contact_no,
+            isVerified: Boolean(dbUser.is_verified),
           }
         : null,
     });
