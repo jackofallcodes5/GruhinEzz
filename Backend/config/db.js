@@ -114,21 +114,48 @@ async function initTables() {
       );
     `);
 
-    // 6. products
+    // 6. products (full schema with rich e-commerce fields)
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
-        id            SERIAL PRIMARY KEY,
-        seller_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        title         TEXT NOT NULL,
-        description   TEXT,
-        price         NUMERIC(10,2) NOT NULL,
-        category      TEXT,
-        image_url     TEXT,
-        stock         INT DEFAULT 10,
-        artisan_name  TEXT,
-        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        id               SERIAL PRIMARY KEY,
+        seller_id        INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title            TEXT NOT NULL,
+        description      TEXT,
+        price            NUMERIC(10,2) NOT NULL,
+        original_price   NUMERIC(10,2),
+        discount_pct     INT DEFAULT 0,
+        category         TEXT,
+        image_url        TEXT,
+        images           JSONB DEFAULT '[]',
+        stock            INT DEFAULT 10,
+        artisan_name     TEXT,
+        seller_name      TEXT,
+        seller_location  TEXT,
+        artisan_story    TEXT,
+        rating           NUMERIC(3,2) DEFAULT 4.5,
+        review_count     INT DEFAULT 0,
+        is_active        BOOLEAN DEFAULT TRUE,
+        created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+
+    // Add missing columns to existing products tables (safe ALTER TABLE for upgrades)
+    const productAlterCols = [
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS original_price NUMERIC(10,2)`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_pct INT DEFAULT 0`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS seller_name TEXT`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS seller_location TEXT`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS artisan_story TEXT`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) DEFAULT 4.5`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS review_count INT DEFAULT 0`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`,
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+    ];
+    for (const sql of productAlterCols) {
+      try { await client.query(sql); } catch (e) { /* column already exists */ }
+    }
 
     // 7. orders
     await client.query(`
