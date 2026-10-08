@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import apiClient from "../../services/apiClient";
 import {
   DollarSign,
   TrendingUp,
@@ -11,95 +12,80 @@ import {
   Download,
   X,
   Zap,
+  Loader2,
 } from "lucide-react";
 
 export default function EarningsView() {
-  const [availableBalance, setAvailableBalance] = useState(14850);
-  const totalRevenue = 28450;
-  const [withdrawnAmount, setWithdrawnAmount] = useState(9400);
+  const [earnings, setEarnings] = useState({ available_balance: 0, total_revenue: 0, withdrawn_amount: 0 });
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [payoutModalOpen, setPayoutModalOpen] = useState(false);
   const [withdrawInput, setWithdrawInput] = useState("5000");
   const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
-  const [transactions, setTransactions] = useState([
-    {
-      id: "TXN-CF-90812",
-      date: "08 Oct 2026, 12:45 PM",
-      desc: "Order CF-ORD-98421 (Organic Mango Pickle x2)",
-      type: "CREDIT",
-      amount: 498,
-      status: "Settled",
-    },
-    {
-      id: "TXN-CF-90760",
-      date: "07 Oct 2026, 05:00 PM",
-      desc: "Order CF-ORD-98390 (Silk Chanderi Dupatta)",
-      type: "CREDIT",
-      amount: 899,
-      status: "Settled",
-    },
-    {
-      id: "TXN-WD-90411",
-      date: "04 Oct 2026, 10:30 AM",
-      desc: "Bank Transfer to SBI (A/C ••5821)",
-      type: "PAYOUT",
-      amount: 5000,
-      status: "Settled",
-    },
-    {
-      id: "TXN-CF-90219",
-      date: "03 Oct 2026, 03:15 PM",
-      desc: "Order CF-ORD-98011 (Terracotta Tea Set)",
-      type: "CREDIT",
-      amount: 650,
-      status: "Settled",
-    },
-    {
-      id: "TXN-WD-89940",
-      date: "28 Sep 2026, 11:00 AM",
-      desc: "Bank Transfer to SBI (A/C ••5821)",
-      type: "PAYOUT",
-      amount: 4400,
-      status: "Settled",
-    },
-  ]);
-
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleWithdrawal = (e) => {
+  // Fetch earnings + transactions from backend
+  useEffect(() => {
+    apiClient.get("/seller/earnings")
+      .then(({ data }) => {
+        setEarnings(data.earnings);
+        setTransactions(
+          data.transactions.map((t) => ({
+            ...t,
+            date: new Date(t.date).toLocaleString("en-IN", {
+              day: "2-digit", month: "short", year: "numeric",
+              hour: "2-digit", minute: "2-digit",
+            }),
+          }))
+        );
+      })
+      .catch((err) => {
+        console.error("Failed to load earnings:", err);
+        showToast("Failed to load earnings from server.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleWithdrawal = async (e) => {
     e.preventDefault();
     const amount = Number(withdrawInput);
     if (!amount || amount <= 0) return;
-    if (amount > availableBalance) {
+    if (amount > parseFloat(earnings.available_balance)) {
       alert("Withdrawal amount cannot exceed available balance.");
       return;
     }
-
     setProcessingWithdrawal(true);
-    setTimeout(() => {
-      setAvailableBalance((prev) => prev - amount);
-      setWithdrawnAmount((prev) => prev + amount);
-
+    try {
+      const { data } = await apiClient.post("/seller/earnings/withdraw", { amount });
+      setEarnings(data.earnings);
+      // Prepend the new payout transaction
       const newTxn = {
-        id: `TXN-WD-${Date.now().toString().slice(-5)}`,
-        date: "Just now",
-        desc: "Instant Cashfree Payout to SBI (A/C ••5821)",
-        type: "PAYOUT",
-        amount: amount,
-        status: "Settled",
+        ...data.transaction,
+        date: new Date(data.transaction.created_at).toLocaleString("en-IN", {
+          day: "2-digit", month: "short", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        }),
       };
-
       setTransactions((prev) => [newTxn, ...prev]);
-      setProcessingWithdrawal(false);
       setPayoutModalOpen(false);
       showToast(`Transferred ₹${amount} directly to your verified bank account!`);
-    }, 1200);
+    } catch (err) {
+      console.error("Withdrawal failed:", err);
+      showToast(err.response?.data?.message || "Withdrawal failed. Please try again.");
+    } finally {
+      setProcessingWithdrawal(false);
+    }
   };
+
+  const availableBalance = parseFloat(earnings.available_balance || 0);
+  const totalRevenue     = parseFloat(earnings.total_revenue     || 0);
+  const withdrawnAmount  = parseFloat(earnings.withdrawn_amount  || 0);
 
   return (
     <div className="space-y-6">

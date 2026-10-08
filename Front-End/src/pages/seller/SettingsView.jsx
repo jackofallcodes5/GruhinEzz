@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import apiClient from "../../services/apiClient";
 import {
   Settings,
   Store,
@@ -11,48 +12,36 @@ import {
   MapPin,
   ShieldCheck,
   User,
+  Loader2,
 } from "lucide-react";
 
 export default function SettingsView() {
   const [activeTab, setActiveTab] = useState("profile");
   const [toastMessage, setToastMessage] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Form states
+  // Form states — defaults match seed data; will be overwritten by API
   const [profileData, setProfileData] = useState({
-    storeName: "Sunita's Traditional Rasoi",
-    ownerName: "Sunita Sharma",
-    category: "Homemade Foods",
-    email: "sunita.sharma@example.com",
-    phone: "+91 98765 43210",
-    address: "B-14, Vaishali Nagar",
-    city: "Jaipur",
-    state: "Rajasthan",
-    pincode: "302021",
-    bio: "Learned this sun-dried raw mango pickle recipe from my grandmother. Every batch is naturally cured in cold-pressed mustard oil with authentic Rajasthani whole spices.",
+    storeName: "", ownerName: "", category: "",
+    email: "", phone: "", address: "",
+    city: "", state: "", pincode: "", bio: "",
   });
 
   const [bankData, setBankData] = useState({
-    bankName: "State Bank of India (SBI)",
-    accountHolder: "Sunita Sharma",
-    accountNumber: "38920198425821",
-    ifsc: "SBIN0004123",
-    upiId: "sunita.rasoi@okaxis",
-    autoPayout: true,
+    bankName: "", accountHolder: "", accountNumber: "",
+    ifsc: "", upiId: "", autoPayout: true,
   });
 
   const [shippingData, setShippingData] = useState({
-    shippingFee: "40",
-    freeThreshold: "499",
+    shippingFee: "40", freeThreshold: "499",
     dispatchTime: "24-48 Hours",
     returnPolicy: "7-Day Replacement Guarantee",
     codAllowed: true,
   });
 
   const [notifications, setNotifications] = useState({
-    orderWhatsapp: true,
-    orderSms: true,
-    emailInvoice: true,
-    promotions: false,
+    orderWhatsapp: true, orderSms: true,
+    emailInvoice: true, promotions: false,
   });
 
   const showToast = (msg) => {
@@ -60,9 +49,115 @@ export default function SettingsView() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleSave = (e) => {
+  // Fetch all settings from backend
+  useEffect(() => {
+    const SELLER_ID = 10; // Replace with auth context in production
+    Promise.all([
+      apiClient.get(`/seller-setup/info/${SELLER_ID}`),
+      apiClient.get(`/seller-setup/business/${SELLER_ID}`),
+      apiClient.get(`/seller-setup/bank/${SELLER_ID}`),
+      apiClient.get(`/seller/settings?sellerId=${SELLER_ID}`),
+    ])
+      .then(([profileRes, businessRes, bankRes, settingsRes]) => {
+        const p = profileRes.data.profile || {};
+        const b = businessRes.data.business || {};
+        const bank = bankRes.data.bank || {};
+        const s = settingsRes.data.settings || {};
+
+        setProfileData({
+          storeName:  b.store_name  || "",
+          ownerName:  p.full_name   || "",
+          category:   b.category    || "",
+          email:      p.email       || "",
+          phone:      p.phone       || "",
+          address:    p.address     || "",
+          city:       p.city        || "",
+          state:      p.state       || "",
+          pincode:    p.pincode     || "",
+          bio:        b.description || "",
+        });
+
+        setBankData({
+          bankName:       bank.bank_name           || "",
+          accountHolder:  bank.account_holder_name || "",
+          accountNumber:  bank.account_number      || "",
+          ifsc:           bank.ifsc_code           || "",
+          upiId:          bank.upi_id              || "",
+          autoPayout:     bank.auto_payout         ?? true,
+        });
+
+        setShippingData({
+          shippingFee:   String(s.shipping_fee   || "40"),
+          freeThreshold: String(s.free_threshold || "499"),
+          dispatchTime:  s.dispatch_time || "24-48 Hours",
+          returnPolicy:  s.return_policy || "7-Day Replacement Guarantee",
+          codAllowed:    s.cod_allowed   ?? true,
+        });
+
+        setNotifications({
+          orderWhatsapp: s.whatsapp_alerts ?? true,
+          orderSms:      s.sms_alerts      ?? true,
+          emailInvoice:  s.email_invoices  ?? true,
+          promotions:    false,
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to load settings:", err);
+        showToast("Could not load settings from server.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Save handler — saves to the relevant backend endpoint per tab
+  const handleSave = async (e) => {
     e.preventDefault();
-    showToast("Settings and store configurations updated successfully!");
+    const SELLER_ID = 10;
+    try {
+      if (activeTab === "profile") {
+        await apiClient.post("/seller-setup/business", {
+          userId: SELLER_ID,
+          storeName: profileData.storeName,
+          category: profileData.category,
+          description: profileData.bio,
+        });
+        await apiClient.post("/seller-setup/info", {
+          userId: SELLER_ID,
+          fullName: profileData.ownerName,
+          email: profileData.email,
+          phone: profileData.phone,
+          address: profileData.address,
+          city: profileData.city,
+          state: profileData.state,
+          pincode: profileData.pincode,
+        });
+      } else if (activeTab === "bank") {
+        await apiClient.post("/seller-setup/bank", {
+          userId: SELLER_ID,
+          bankName: bankData.bankName,
+          accountHolderName: bankData.accountHolder,
+          accountNumber: bankData.accountNumber,
+          ifscCode: bankData.ifsc,
+          upiId: bankData.upiId,
+          autoPayout: bankData.autoPayout,
+        });
+      } else if (activeTab === "shipping" || activeTab === "notifications") {
+        await apiClient.post("/seller/settings", {
+          sellerId: SELLER_ID,
+          shippingFee:    parseFloat(shippingData.shippingFee),
+          freeThreshold:  parseFloat(shippingData.freeThreshold),
+          dispatchTime:   shippingData.dispatchTime,
+          returnPolicy:   shippingData.returnPolicy,
+          codAllowed:     shippingData.codAllowed,
+          whatsappAlerts: notifications.orderWhatsapp,
+          smsAlerts:      notifications.orderSms,
+          emailInvoices:  notifications.emailInvoice,
+        });
+      }
+      showToast("Settings updated successfully!");
+    } catch (err) {
+      console.error("Save settings error:", err);
+      showToast("Failed to save settings.");
+    }
   };
 
   return (

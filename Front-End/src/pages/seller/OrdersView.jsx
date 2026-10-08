@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import apiClient from "../../services/apiClient";
 import {
   ShoppingBag,
   Search,
@@ -15,117 +16,12 @@ import {
   X,
   Printer,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 
-const INITIAL_ORDERS = [
-  {
-    id: "CF-ORD-98421",
-    date: "08 Oct 2026, 11:30 AM",
-    customer: {
-      name: "Aarav Sharma",
-      phone: "+91 98765 43210",
-      email: "aarav.sharma@example.com",
-      address: "Flat 402, Lotus Residency, Malviya Nagar",
-      city: "Jaipur",
-      state: "Rajasthan",
-      pincode: "302017",
-    },
-    product: {
-      id: 1,
-      name: "Handcrafted Organic Mango Pickle (500g)",
-      image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop&q=60",
-      variant: "500g Glass Jar • Traditional Spicy",
-      quantity: 2,
-      unitPrice: 249,
-      totalAmount: 498,
-    },
-    paymentMethod: "Cashfree UPI (Instant)",
-    paymentStatus: "PAID",
-    orderStatus: "Processing",
-    trackingNumber: "DTDC-JP-892134",
-  },
-  {
-    id: "CF-ORD-98390",
-    date: "07 Oct 2026, 04:15 PM",
-    customer: {
-      name: "Meera Nair",
-      phone: "+91 98234 56789",
-      email: "meera.nair@example.com",
-      address: "Villa 12, Palm Meadows, Whitefield",
-      city: "Bengaluru",
-      state: "Karnataka",
-      pincode: "560066",
-    },
-    product: {
-      id: 2,
-      name: "Hand-Embroidered Silk Chanderi Dupatta",
-      image: "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=500&auto=format&fit=crop&q=60",
-      variant: "Royal Maroon & Gold",
-      quantity: 1,
-      unitPrice: 899,
-      totalAmount: 899,
-    },
-    paymentMethod: "Cashfree Credit Card",
-    paymentStatus: "PAID",
-    orderStatus: "Shipped",
-    trackingNumber: "BLUEDART-BLR-4892",
-  },
-  {
-    id: "CF-ORD-98205",
-    date: "05 Oct 2026, 09:40 AM",
-    customer: {
-      name: "Rohit Agarwal",
-      phone: "+91 97123 45678",
-      email: "rohit.ag@example.com",
-      address: "B-22, Civil Lines",
-      city: "Gurugram",
-      state: "Haryana",
-      pincode: "122001",
-    },
-    product: {
-      id: 5,
-      name: "Homemade Bilona Pure A2 Cow Ghee (1 Litre)",
-      image: "https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?w=500&auto=format&fit=crop&q=60",
-      variant: "1000ml (1 Litre) Glass Jar",
-      quantity: 1,
-      unitPrice: 1150,
-      totalAmount: 1150,
-    },
-    paymentMethod: "Cashfree NetBanking",
-    paymentStatus: "PAID",
-    orderStatus: "Delivered",
-    trackingNumber: "DELHIVERY-DEL-3921",
-  },
-  {
-    id: "CF-ORD-98011",
-    date: "03 Oct 2026, 02:20 PM",
-    customer: {
-      name: "Shreya Sen",
-      phone: "+91 98311 22334",
-      email: "shreya.sen@example.com",
-      address: "74, Southern Avenue",
-      city: "Kolkata",
-      state: "West Bengal",
-      pincode: "700029",
-    },
-    product: {
-      id: 3,
-      name: "Handpainted Terracotta Clay Tea Set",
-      image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=500&auto=format&fit=crop&q=60",
-      variant: "Kutchi Tribal Floral (Multicolor)",
-      quantity: 1,
-      unitPrice: 650,
-      totalAmount: 650,
-    },
-    paymentMethod: "Cashfree UPI",
-    paymentStatus: "PAID",
-    orderStatus: "Delivered",
-    trackingNumber: "INDIAPOST-KOL-9812",
-  },
-];
-
 export default function OrdersView() {
-  const [orders, setOrders] = useState(INITIAL_ORDERS);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
@@ -135,6 +31,49 @@ export default function OrdersView() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Fetch orders from the backend on mount
+  useEffect(() => {
+    apiClient.get("/seller/orders")
+      .then(({ data }) => {
+        // Normalise DB rows into the shape the UI expects
+        const normalised = data.orders.map((o) => ({
+          id: o.cf_order_id,
+          date: new Date(o.created_at).toLocaleString("en-IN", {
+            day: "2-digit", month: "short", year: "numeric",
+            hour: "2-digit", minute: "2-digit",
+          }),
+          customer: {
+            name: o.customer_name,
+            phone: o.customer_phone,
+            email: o.customer_email,
+            address: o.shipping_address,
+            city: o.shipping_city,
+            state: o.shipping_state,
+            pincode: o.shipping_pincode,
+          },
+          product: {
+            id: o.id,
+            name: o.product_title,
+            image: o.product_image_url,
+            variant: o.product_variant,
+            quantity: o.quantity,
+            unitPrice: parseFloat(o.unit_price),
+            totalAmount: parseFloat(o.order_amount),
+          },
+          paymentMethod: o.payment_method,
+          paymentStatus: o.payment_status,
+          orderStatus: o.fulfillment_status,
+          trackingNumber: o.tracking_number,
+        }));
+        setOrders(normalised);
+      })
+      .catch((err) => {
+        console.error("Failed to load orders:", err);
+        showToast("Failed to load orders from server.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   // Filtered orders
   const filteredOrders = orders.filter((o) => {
@@ -146,16 +85,33 @@ export default function OrdersView() {
     return matchesTab && matchesSearch;
   });
 
-  // Update order fulfillment status
-  const handleUpdateStatus = (orderId, newStatus) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, orderStatus: newStatus } : o))
-    );
-    showToast(`Order ${orderId} marked as ${newStatus}!`);
+  // Update order fulfillment status (local + backend)
+  const handleUpdateStatus = async (orderId, newStatus) => {
+    try {
+      await apiClient.patch("/seller/orders/status", {
+        cfOrderId: orderId,
+        fulfillmentStatus: newStatus,
+      });
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, orderStatus: newStatus } : o))
+      );
+      showToast(`Order ${orderId} marked as ${newStatus}!`);
+    } catch (err) {
+      console.error("Failed to update order status:", err);
+      showToast("Failed to update order status.");
+    }
   };
 
   return (
     <div className="space-y-6">
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-16 text-[#7a6070]">
+          <Loader2 size={28} className="animate-spin mr-2" />
+          <span className="text-sm font-medium">Loading orders...</span>
+        </div>
+      )}
+      {!loading && (<>
       {/* Toast */}
       {toastMessage && (
         <div className="p-3 bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-medium flex items-center justify-between shadow-md">
@@ -504,6 +460,7 @@ export default function OrdersView() {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }

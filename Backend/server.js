@@ -6,22 +6,26 @@ const { testConnection } = require("./config/db");
 
 const authRoutes = require("./routes/authRoutes");
 const sellerSetupRoutes = require("./routes/sellerSetupRoutes");
+const sellerDashboardRoutes = require("./routes/sellerDashboardRoutes");
 const ngoSetupRoutes = require("./routes/ngoSetupRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 
 const app = express();
-
-const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173")
-  .split(",")
-  .map((o) => o.trim());
-
 const path = require("path");
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+        return callback(null, true);
+      }
+      const allowedOrigins = (process.env.CLIENT_ORIGINS || "").split(",").map(o => o.trim());
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
@@ -39,6 +43,7 @@ app.get("/api/health", (req, res) => {
 // API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/seller-setup", sellerSetupRoutes);
+app.use("/api/seller", sellerDashboardRoutes);
 app.use("/api/ngo-setup", ngoSetupRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/admin", adminRoutes);
