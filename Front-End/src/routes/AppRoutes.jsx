@@ -17,6 +17,7 @@ import NgoLegalPage from "../ngosetup/NgoLegalPage";
 
 import AdminLoginPage from "../pages/AdminLoginPage";
 import AdminDashboardPage from "../pages/AdminDashboardPage";
+import ProductPage from "../pages/ProductPage";
 
 import { checkSession } from "../services/authService";
 
@@ -203,11 +204,55 @@ export default function AppRoutes() {
         element={
           <PrivateRoute>
             <VerifiedSellerRoute>
-              <SellerDashboard />
+              <SellerDashboard initialTab="overview" />
             </VerifiedSellerRoute>
           </PrivateRoute>
         }
       />
+      <Route
+        path="/dashboard/seller/products"
+        element={
+          <PrivateRoute>
+            <VerifiedSellerRoute>
+              <SellerDashboard initialTab="products" />
+            </VerifiedSellerRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/dashboard/seller/orders"
+        element={
+          <PrivateRoute>
+            <VerifiedSellerRoute>
+              <SellerDashboard initialTab="orders" />
+            </VerifiedSellerRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/dashboard/seller/earnings"
+        element={
+          <PrivateRoute>
+            <VerifiedSellerRoute>
+              <SellerDashboard initialTab="earnings" />
+            </VerifiedSellerRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/dashboard/seller/settings"
+        element={
+          <PrivateRoute>
+            <VerifiedSellerRoute>
+              <SellerDashboard initialTab="settings" />
+            </VerifiedSellerRoute>
+          </PrivateRoute>
+        }
+      />
+      <Route path="/seller/products" element={<Navigate to="/dashboard/seller/products" replace />} />
+      <Route path="/seller/orders" element={<Navigate to="/dashboard/seller/orders" replace />} />
+      <Route path="/seller/earnings" element={<Navigate to="/dashboard/seller/earnings" replace />} />
+      <Route path="/seller/settings" element={<Navigate to="/dashboard/seller/settings" replace />} />
       <Route
         path="/dashboard/ngo"
         element={
@@ -294,6 +339,10 @@ export default function AppRoutes() {
           </AdminPrivateRoute>
         }
       />
+
+      {/* Product Views — Product Page */}
+      <Route path="/product/:id" element={<ProductPage />} />
+      <Route path="/products/:id" element={<ProductPage />} />
 
       <Route path="*" element={<Navigate to="/signup" replace />} />
     </Routes>

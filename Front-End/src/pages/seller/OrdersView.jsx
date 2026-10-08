@@ -1,0 +1,509 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  ShoppingBag,
+  Search,
+  Filter,
+  CheckCircle2,
+  Clock,
+  Truck,
+  FileText,
+  User,
+  MapPin,
+  Phone,
+  Calendar,
+  X,
+  Printer,
+  ChevronRight,
+} from "lucide-react";
+
+const INITIAL_ORDERS = [
+  {
+    id: "CF-ORD-98421",
+    date: "08 Oct 2026, 11:30 AM",
+    customer: {
+      name: "Aarav Sharma",
+      phone: "+91 98765 43210",
+      email: "aarav.sharma@example.com",
+      address: "Flat 402, Lotus Residency, Malviya Nagar",
+      city: "Jaipur",
+      state: "Rajasthan",
+      pincode: "302017",
+    },
+    product: {
+      id: 1,
+      name: "Handcrafted Organic Mango Pickle (500g)",
+      image: "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop&q=60",
+      variant: "500g Glass Jar • Traditional Spicy",
+      quantity: 2,
+      unitPrice: 249,
+      totalAmount: 498,
+    },
+    paymentMethod: "Cashfree UPI (Instant)",
+    paymentStatus: "PAID",
+    orderStatus: "Processing",
+    trackingNumber: "DTDC-JP-892134",
+  },
+  {
+    id: "CF-ORD-98390",
+    date: "07 Oct 2026, 04:15 PM",
+    customer: {
+      name: "Meera Nair",
+      phone: "+91 98234 56789",
+      email: "meera.nair@example.com",
+      address: "Villa 12, Palm Meadows, Whitefield",
+      city: "Bengaluru",
+      state: "Karnataka",
+      pincode: "560066",
+    },
+    product: {
+      id: 2,
+      name: "Hand-Embroidered Silk Chanderi Dupatta",
+      image: "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=500&auto=format&fit=crop&q=60",
+      variant: "Royal Maroon & Gold",
+      quantity: 1,
+      unitPrice: 899,
+      totalAmount: 899,
+    },
+    paymentMethod: "Cashfree Credit Card",
+    paymentStatus: "PAID",
+    orderStatus: "Shipped",
+    trackingNumber: "BLUEDART-BLR-4892",
+  },
+  {
+    id: "CF-ORD-98205",
+    date: "05 Oct 2026, 09:40 AM",
+    customer: {
+      name: "Rohit Agarwal",
+      phone: "+91 97123 45678",
+      email: "rohit.ag@example.com",
+      address: "B-22, Civil Lines",
+      city: "Gurugram",
+      state: "Haryana",
+      pincode: "122001",
+    },
+    product: {
+      id: 5,
+      name: "Homemade Bilona Pure A2 Cow Ghee (1 Litre)",
+      image: "https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?w=500&auto=format&fit=crop&q=60",
+      variant: "1000ml (1 Litre) Glass Jar",
+      quantity: 1,
+      unitPrice: 1150,
+      totalAmount: 1150,
+    },
+    paymentMethod: "Cashfree NetBanking",
+    paymentStatus: "PAID",
+    orderStatus: "Delivered",
+    trackingNumber: "DELHIVERY-DEL-3921",
+  },
+  {
+    id: "CF-ORD-98011",
+    date: "03 Oct 2026, 02:20 PM",
+    customer: {
+      name: "Shreya Sen",
+      phone: "+91 98311 22334",
+      email: "shreya.sen@example.com",
+      address: "74, Southern Avenue",
+      city: "Kolkata",
+      state: "West Bengal",
+      pincode: "700029",
+    },
+    product: {
+      id: 3,
+      name: "Handpainted Terracotta Clay Tea Set",
+      image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=500&auto=format&fit=crop&q=60",
+      variant: "Kutchi Tribal Floral (Multicolor)",
+      quantity: 1,
+      unitPrice: 650,
+      totalAmount: 650,
+    },
+    paymentMethod: "Cashfree UPI",
+    paymentStatus: "PAID",
+    orderStatus: "Delivered",
+    trackingNumber: "INDIAPOST-KOL-9812",
+  },
+];
+
+export default function OrdersView() {
+  const [orders, setOrders] = useState(INITIAL_ORDERS);
+  const [activeTab, setActiveTab] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Filtered orders
+  const filteredOrders = orders.filter((o) => {
+    const matchesTab = activeTab === "All" || o.orderStatus === activeTab;
+    const matchesSearch =
+      o.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      o.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      o.product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
+
+  // Update order fulfillment status
+  const handleUpdateStatus = (orderId, newStatus) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, orderStatus: newStatus } : o))
+    );
+    showToast(`Order ${orderId} marked as ${newStatus}!`);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Toast */}
+      {toastMessage && (
+        <div className="p-3 bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-medium flex items-center justify-between shadow-md">
+          <span>✓ {toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="text-white/80 hover:text-white">✕</button>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#e2d3c8]">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-[#48154c] flex items-center gap-2">
+            <ShoppingBag size={24} className="text-[#ae3a65]" />
+            Customer Orders & Fulfillment
+          </h2>
+          <p className="text-xs text-[#7a6070] mt-0.5">
+            Track buyer purchases, update shipping tracking, and generate packing slips
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs font-semibold text-[#48154c] bg-[#f5ece6] px-3.5 py-2 rounded-xl border border-[#e2d3c8]">
+          <span>Cashfree Automated Tracking Active</span>
+          <CheckCircle2 size={15} className="text-emerald-600" />
+        </div>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl p-4 border border-[#e2d3c8] shadow-2xs">
+          <p className="text-[11px] font-semibold text-[#7a6070] uppercase tracking-wider">
+            Total Orders
+          </p>
+          <p className="text-2xl font-bold text-[#48154c] mt-1">{orders.length}</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-[#e2d3c8] shadow-2xs">
+          <p className="text-[11px] font-semibold text-[#7a6070] uppercase tracking-wider">
+            In Processing
+          </p>
+          <p className="text-2xl font-bold text-amber-700 mt-1">
+            {orders.filter((o) => o.orderStatus === "Processing").length}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-[#e2d3c8] shadow-2xs">
+          <p className="text-[11px] font-semibold text-[#7a6070] uppercase tracking-wider">
+            Dispatched / Shipped
+          </p>
+          <p className="text-2xl font-bold text-blue-700 mt-1">
+            {orders.filter((o) => o.orderStatus === "Shipped").length}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 border border-[#e2d3c8] shadow-2xs">
+          <p className="text-[11px] font-semibold text-[#7a6070] uppercase tracking-wider">
+            Fulfilled & Delivered
+          </p>
+          <p className="text-2xl font-bold text-emerald-700 mt-1">
+            {orders.filter((o) => o.orderStatus === "Delivered").length}
+          </p>
+        </div>
+      </div>
+
+      {/* Tabs & Search */}
+      <div className="bg-white rounded-2xl p-4 border border-[#e2d3c8] shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto text-xs">
+          {["All", "Processing", "Shipped", "Delivered"].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3.5 py-1.5 rounded-xl font-bold transition-colors whitespace-nowrap ${
+                activeTab === tab
+                  ? "bg-[#48154c] text-white"
+                  : "bg-[#f5ece6] text-[#2d2130] hover:bg-[#e2d3c8]"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full md:w-72">
+          <Search size={16} className="absolute left-3 top-3 text-[#7a6070]" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by ID, buyer or craft..."
+            className="w-full bg-[#f5ece6] border border-[#e2d3c8] rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-[#48154c]"
+          />
+        </div>
+      </div>
+
+      {/* Orders List Cards */}
+      <div className="space-y-4">
+        {filteredOrders.length > 0 ? (
+          filteredOrders.map((ord) => (
+            <div
+              key={ord.id}
+              className="bg-white rounded-3xl border border-[#e2d3c8] p-5 sm:p-6 shadow-xs hover:border-[#ae3a65] transition-colors"
+            >
+              {/* Order Header */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-[#f5ece6]">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono font-bold text-sm text-[#48154c]">
+                    {ord.id}
+                  </span>
+                  <span className="text-xs text-[#7a6070] flex items-center gap-1">
+                    <Calendar size={13} /> {ord.date}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                    {ord.paymentStatus} • {ord.paymentMethod}
+                  </span>
+
+                  <span
+                    className={`text-xs font-bold px-3 py-1 rounded-full ${
+                      ord.orderStatus === "Delivered"
+                        ? "bg-emerald-600 text-white"
+                        : ord.orderStatus === "Shipped"
+                        ? "bg-blue-600 text-white"
+                        : "bg-amber-500 text-white"
+                    }`}
+                  >
+                    {ord.orderStatus}
+                  </span>
+                </div>
+              </div>
+
+              {/* Order Body Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                {/* Product Detail */}
+                <div className="md:col-span-6 flex items-start gap-3.5">
+                  <img
+                    src={ord.product.image}
+                    alt={ord.product.name}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover bg-[#f5ece6] border border-[#e2d3c8] shrink-0"
+                  />
+                  <div>
+                    <Link
+                      to={`/product/${ord.product.id}`}
+                      className="font-bold text-sm sm:text-base text-[#2d2130] hover:text-[#48154c] transition-colors line-clamp-1"
+                    >
+                      {ord.product.name}
+                    </Link>
+                    <p className="text-xs text-[#7a6070] mt-0.5">
+                      {ord.product.variant}
+                    </p>
+                    <div className="flex items-baseline gap-2 mt-1.5">
+                      <span className="text-xs text-[#7a6070]">
+                        Qty: <strong>{ord.product.quantity}</strong>
+                      </span>
+                      <span className="text-xs text-[#7a6070]">•</span>
+                      <span className="text-sm font-extrabold text-[#48154c]">
+                        Total: ₹{ord.product.totalAmount}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Customer & Delivery Details */}
+                <div className="md:col-span-4 bg-[#f5ece6]/60 p-3.5 rounded-2xl border border-[#e2d3c8] text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-[#48154c]">
+                    <User size={13} /> {ord.customer.name}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[#5a4855]">
+                    <Phone size={13} /> {ord.customer.phone}
+                  </div>
+                  <div className="flex items-start gap-1.5 text-[#5a4855] pt-0.5">
+                    <MapPin size={13} className="shrink-0 mt-0.5" />
+                    <span className="line-clamp-2">
+                      {ord.customer.address}, {ord.customer.city}, {ord.customer.state} - {ord.customer.pincode}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="md:col-span-2 flex flex-col gap-2">
+                  {ord.orderStatus === "Processing" && (
+                    <button
+                      onClick={() => handleUpdateStatus(ord.id, "Shipped")}
+                      className="w-full py-2 bg-[#48154c] text-white rounded-xl text-xs font-bold hover:bg-[#38103c] transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                    >
+                      <Truck size={14} />
+                      <span>Ship Order</span>
+                    </button>
+                  )}
+
+                  {ord.orderStatus === "Shipped" && (
+                    <button
+                      onClick={() => handleUpdateStatus(ord.id, "Delivered")}
+                      className="w-full py-2 bg-emerald-700 text-white rounded-xl text-xs font-bold hover:bg-emerald-800 transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>Mark Delivered</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setSelectedInvoiceOrder(ord)}
+                    className="w-full py-2 border border-[#e2d3c8] bg-white text-[#48154c] rounded-xl text-xs font-semibold hover:bg-[#f5ece6] transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <FileText size={14} />
+                    <span>Packing Slip</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="bg-white rounded-3xl p-10 border border-[#e2d3c8] text-center">
+            <span className="text-4xl block mb-2">📦</span>
+            <h3 className="font-bold text-base text-[#48154c] mb-1">
+              No orders found
+            </h3>
+            <p className="text-xs text-[#7a6070]">
+              There are no orders matching this filter right now.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Packing Slip / Invoice Modal ── */}
+      {selectedInvoiceOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-[#e2d3c8] relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setSelectedInvoiceOrder(null)}
+              className="absolute top-5 right-5 text-[#7a6070] hover:text-[#48154c]"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Printable Packing Slip */}
+            <div className="border-b-2 border-[#48154c] pb-4 mb-4 flex justify-between items-start">
+              <div>
+                <h3 className="font-extrabold text-xl text-[#48154c]">
+                  GruhinEzz Dispatch Slip
+                </h3>
+                <p className="text-[11px] text-[#7a6070]">
+                  Women Entrepreneurs Direct Marketplace
+                </p>
+              </div>
+              <div className="text-right text-xs">
+                <p className="font-mono font-bold text-[#48154c]">
+                  {selectedInvoiceOrder.id}
+                </p>
+                <p className="text-[#7a6070]">{selectedInvoiceOrder.date}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-xs mb-6">
+              <div className="bg-[#f5ece6]/60 p-3 rounded-xl border border-[#e2d3c8]">
+                <p className="font-bold text-[#48154c] uppercase mb-1 text-[10px]">
+                  Ship To (Buyer)
+                </p>
+                <p className="font-semibold text-[#2d2130]">
+                  {selectedInvoiceOrder.customer.name}
+                </p>
+                <p className="text-[#5a4855]">
+                  {selectedInvoiceOrder.customer.address}
+                </p>
+                <p className="text-[#5a4855]">
+                  {selectedInvoiceOrder.customer.city},{" "}
+                  {selectedInvoiceOrder.customer.state} -{" "}
+                  {selectedInvoiceOrder.customer.pincode}
+                </p>
+                <p className="text-[#5a4855] font-mono mt-1">
+                  📞 {selectedInvoiceOrder.customer.phone}
+                </p>
+              </div>
+
+              <div className="bg-[#f5ece6]/60 p-3 rounded-xl border border-[#e2d3c8]">
+                <p className="font-bold text-[#48154c] uppercase mb-1 text-[10px]">
+                  Dispatched By (Artisan)
+                </p>
+                <p className="font-semibold text-[#2d2130]">
+                  Sunita's Traditional Rasoi
+                </p>
+                <p className="text-[#5a4855]">Jaipur, Rajasthan, India</p>
+                <p className="text-emerald-800 font-semibold mt-1">
+                  ✓ Verified Woman Entrepreneur
+                </p>
+                <p className="text-[#7a6070] font-mono text-[10px] mt-1">
+                  AWB: {selectedInvoiceOrder.trackingNumber}
+                </p>
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <table className="w-full text-left text-xs mb-6">
+              <thead className="bg-[#f5ece6] text-[#48154c] font-bold border-b border-[#e2d3c8]">
+                <tr>
+                  <th className="py-2 px-3">Craft Item</th>
+                  <th className="py-2 px-3 text-center">Qty</th>
+                  <th className="py-2 px-3 text-right">Price</th>
+                  <th className="py-2 px-3 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f5ece6]">
+                <tr>
+                  <td className="py-3 px-3 font-semibold text-[#2d2130]">
+                    {selectedInvoiceOrder.product.name}
+                    <span className="block font-normal text-[10px] text-[#7a6070]">
+                      {selectedInvoiceOrder.product.variant}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-center font-bold">
+                    {selectedInvoiceOrder.product.quantity}
+                  </td>
+                  <td className="py-3 px-3 text-right">
+                    ₹{selectedInvoiceOrder.product.unitPrice}
+                  </td>
+                  <td className="py-3 px-3 text-right font-bold text-[#48154c]">
+                    ₹{selectedInvoiceOrder.product.totalAmount}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="flex justify-between items-center text-xs p-3 bg-emerald-50 rounded-xl border border-emerald-200 mb-6">
+              <span className="font-bold text-emerald-900">
+                Payment Status: {selectedInvoiceOrder.paymentStatus} via {selectedInvoiceOrder.paymentMethod}
+              </span>
+              <span className="text-base font-extrabold text-[#48154c]">
+                ₹{selectedInvoiceOrder.product.totalAmount}
+              </span>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setSelectedInvoiceOrder(null)}
+                className="px-4 py-2 border border-[#e2d3c8] text-xs font-semibold rounded-xl text-[#7a6070]"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-[#48154c] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-xs"
+              >
+                <Printer size={14} /> Print Packing Slip
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

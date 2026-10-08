@@ -4,18 +4,35 @@ import { logoutUser } from "../services/authService";
 import apiClient from "../services/apiClient";
 import logoImg from "../assets/logo.png";
 import {
-  Lock, CheckCircle2, AlertTriangle, Package, ShoppingBag,
-  DollarSign, Sparkles, Plus, Settings, Store, RefreshCw
+  Lock,
+  CheckCircle2,
+  AlertTriangle,
+  Package,
+  ShoppingBag,
+  DollarSign,
+  Sparkles,
+  Plus,
+  RefreshCw,
 } from "lucide-react";
 import "./dashboard.css";
 
-export default function SellerDashboard() {
+// Tab Sub-Views
+import MyProductsView from "../pages/seller/MyProductsView";
+import OrdersView from "../pages/seller/OrdersView";
+import EarningsView from "../pages/seller/EarningsView";
+import SettingsView from "../pages/seller/SettingsView";
+
+export default function SellerDashboard({ initialTab = "overview" }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [isVerified, setIsVerified] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const checkUserVerification = async (parsedUser) => {
     try {
@@ -215,131 +232,171 @@ export default function SellerDashboard() {
           )}
         </div>
 
-        {/* Dashboard Main Content Grid */}
-        <div className="p-6 space-y-6">
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white border border-[#e2d3c8] rounded-2xl p-5 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#7a6070]">Total Products</p>
-                <p className="text-2xl font-bold text-[#2d2130] mt-1">
-                  {isVerified ? "4 Active" : "0 (Locked)"}
-                </p>
-              </div>
-              <div className={`p-3 rounded-xl ${isVerified ? "bg-pink-100 text-pink-700" : "bg-gray-100 text-gray-400"}`}>
-                <Package size={22} />
-              </div>
-            </div>
+        {/* ── Active Tab View Rendering ── */}
+        <div className="p-6">
+          {/* TAB 1: OVERVIEW */}
+          {activeTab === "overview" && (
+            <div className="space-y-6">
+              {/* Quick Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div
+                  onClick={() => isVerified && setActiveTab("products")}
+                  className={`bg-white border border-[#e2d3c8] rounded-2xl p-5 shadow-xs flex items-center justify-between transition-all ${
+                    isVerified ? "cursor-pointer hover:border-[#ae3a65]" : ""
+                  }`}
+                >
+                  <div>
+                    <p className="text-xs text-[#7a6070]">Total Products</p>
+                    <p className="text-2xl font-bold text-[#2d2130] mt-1">
+                      {isVerified ? "8 Active" : "0 (Locked)"}
+                    </p>
+                  </div>
+                  <div className={`p-3 rounded-xl ${isVerified ? "bg-pink-100 text-pink-700" : "bg-gray-100 text-gray-400"}`}>
+                    <Package size={22} />
+                  </div>
+                </div>
 
-            <div className="bg-white border border-[#e2d3c8] rounded-2xl p-5 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#7a6070]">Received Orders</p>
-                <p className="text-2xl font-bold text-[#2d2130] mt-1">
-                  {isVerified ? "12 Orders" : "0 (Locked)"}
-                </p>
-              </div>
-              <div className={`p-3 rounded-xl ${isVerified ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
-                <ShoppingBag size={22} />
-              </div>
-            </div>
+                <div
+                  onClick={() => isVerified && setActiveTab("orders")}
+                  className={`bg-white border border-[#e2d3c8] rounded-2xl p-5 shadow-xs flex items-center justify-between transition-all ${
+                    isVerified ? "cursor-pointer hover:border-[#ae3a65]" : ""
+                  }`}
+                >
+                  <div>
+                    <p className="text-xs text-[#7a6070]">Received Orders</p>
+                    <p className="text-2xl font-bold text-[#2d2130] mt-1">
+                      {isVerified ? "4 Orders" : "0 (Locked)"}
+                    </p>
+                  </div>
+                  <div className={`p-3 rounded-xl ${isVerified ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
+                    <ShoppingBag size={22} />
+                  </div>
+                </div>
 
-            <div className="bg-white border border-[#e2d3c8] rounded-2xl p-5 shadow-xs flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#7a6070]">Cashfree Earnings</p>
-                <p className="text-2xl font-bold text-[#2d2130] mt-1">
-                  {isVerified ? "₹14,850" : "₹0.00 (Locked)"}
-                </p>
+                <div
+                  onClick={() => isVerified && setActiveTab("earnings")}
+                  className={`bg-white border border-[#e2d3c8] rounded-2xl p-5 shadow-xs flex items-center justify-between transition-all ${
+                    isVerified ? "cursor-pointer hover:border-[#ae3a65]" : ""
+                  }`}
+                >
+                  <div>
+                    <p className="text-xs text-[#7a6070]">Cashfree Earnings</p>
+                    <p className="text-2xl font-bold text-[#2d2130] mt-1">
+                      {isVerified ? "₹14,850" : "₹0.00 (Locked)"}
+                    </p>
+                  </div>
+                  <div className={`p-3 rounded-xl ${isVerified ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
+                    <DollarSign size={22} />
+                  </div>
+                </div>
               </div>
-              <div className={`p-3 rounded-xl ${isVerified ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
-                <DollarSign size={22} />
-              </div>
-            </div>
-          </div>
 
-          {/* Feature Action Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Card 1: Add New Product */}
-            <div className={`bg-white border rounded-3xl p-6 shadow-xs relative overflow-hidden transition-all ${
-              isVerified ? "border-[#e2d3c8] hover:border-[#ae3a65]" : "border-gray-200 bg-gray-50/70 opacity-90"
-            }`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className={`p-2.5 rounded-2xl text-lg ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
-                  🛍️
-                </span>
-                {!isVerified ? (
-                  <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 flex items-center gap-1">
-                    <Lock size={12} /> Locked
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-300">
-                    Unlocked ✅
-                  </span>
-                )}
-              </div>
-              <h3 className="font-serif text-lg font-bold text-[#2d2130]">Add New Homemade Product</h3>
-              <p className="text-xs text-[#7a6070] mt-1 leading-relaxed">
-                Publish your handmade handicrafts, homemade snacks, or artisan textiles directly to the GruhinEzz Marketplace.
-              </p>
-              <button
-                onClick={() => {
-                  if (!isVerified) {
-                    alert("🔒 Product creation is locked until Admin verifies your seller account.");
-                  } else {
-                    alert("✨ Add Product Feature Unlocked! Upload product title, image, price, and inventory details.");
-                  }
-                }}
-                className={`mt-5 w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                  isVerified
-                    ? "bg-[#48154c] hover:bg-[#6b2370] text-white shadow-xs"
-                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                }`}
-              >
-                {!isVerified ? <Lock size={14} /> : <Plus size={14} />}
-                {!isVerified ? "Locked Until Verification" : "Add New Product"}
-              </button>
-            </div>
+              {/* Feature Action Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Card 1: Add New Product */}
+                <div className={`bg-white border rounded-3xl p-6 shadow-xs relative overflow-hidden transition-all ${
+                  isVerified ? "border-[#e2d3c8] hover:border-[#ae3a65]" : "border-gray-200 bg-gray-50/70 opacity-90"
+                }`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`p-2.5 rounded-2xl text-lg ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
+                      🛍️
+                    </span>
+                    {!isVerified ? (
+                      <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 flex items-center gap-1">
+                        <Lock size={12} /> Locked
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-300">
+                        Unlocked ✅
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-serif text-lg font-bold text-[#2d2130]">Manage & Add Homemade Crafts</h3>
+                  <p className="text-xs text-[#7a6070] mt-1 leading-relaxed">
+                    Publish your handmade handicrafts, homemade snacks, or artisan textiles directly to the GruhinEzz Marketplace.
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (!isVerified) {
+                        alert("🔒 Product creation is locked until Admin verifies your seller account.");
+                      } else {
+                        setActiveTab("products");
+                      }
+                    }}
+                    className={`mt-5 w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      isVerified
+                        ? "bg-[#48154c] hover:bg-[#6b2370] text-white shadow-xs"
+                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                    }`}
+                  >
+                    {!isVerified ? <Lock size={14} /> : <Plus size={14} />}
+                    {!isVerified ? "Locked Until Verification" : "Open My Products"}
+                  </button>
+                </div>
 
-            {/* Card 2: Cashfree Payout Settings */}
-            <div className={`bg-white border rounded-3xl p-6 shadow-xs relative overflow-hidden transition-all ${
-              isVerified ? "border-[#e2d3c8] hover:border-[#ae3a65]" : "border-gray-200 bg-gray-50/70 opacity-90"
-            }`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className={`p-2.5 rounded-2xl text-lg ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
-                  💳
-                </span>
-                {!isVerified ? (
-                  <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 flex items-center gap-1">
-                    <Lock size={12} /> Locked
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-300">
-                    Unlocked ✅
-                  </span>
-                )}
+                {/* Card 2: Cashfree Payout Settings */}
+                <div className={`bg-white border rounded-3xl p-6 shadow-xs relative overflow-hidden transition-all ${
+                  isVerified ? "border-[#e2d3c8] hover:border-[#ae3a65]" : "border-gray-200 bg-gray-50/70 opacity-90"
+                }`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className={`p-2.5 rounded-2xl text-lg ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
+                      💳
+                    </span>
+                    {!isVerified ? (
+                      <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 flex items-center gap-1">
+                        <Lock size={12} /> Locked
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-300">
+                        Unlocked ✅
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-serif text-lg font-bold text-[#2d2130]">Cashfree Direct Vendor Payouts</h3>
+                  <p className="text-xs text-[#7a6070] mt-1 leading-relaxed">
+                    Automated bank transfers directly to your verified bank account whenever customers purchase your products.
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (!isVerified) {
+                        alert("🔒 Payout setup is locked until Admin verifies your seller account.");
+                      } else {
+                        setActiveTab("earnings");
+                      }
+                    }}
+                    className={`mt-5 w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      isVerified
+                        ? "bg-[#ae3a65] hover:bg-[#c94578] text-white shadow-xs"
+                        : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                    }`}
+                  >
+                    {!isVerified ? <Lock size={14} /> : <DollarSign size={14} />}
+                    {!isVerified ? "Locked Until Verification" : "View Earnings & Payouts"}
+                  </button>
+                </div>
               </div>
-              <h3 className="font-serif text-lg font-bold text-[#2d2130]">Cashfree Direct Vendor Payouts</h3>
-              <p className="text-xs text-[#7a6070] mt-1 leading-relaxed">
-                Automated bank transfers directly to your verified bank account whenever customers purchase your products.
-              </p>
-              <button
-                onClick={() => {
-                  if (!isVerified) {
-                    alert("🔒 Payout setup is locked until Admin verifies your seller account.");
-                  } else {
-                    alert("✨ Cashfree Payouts Active! Funds will be directly settled into your bank account.");
-                  }
-                }}
-                className={`mt-5 w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                  isVerified
-                    ? "bg-[#ae3a65] hover:bg-[#c94578] text-white shadow-xs"
-                    : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                }`}
-              >
-                {!isVerified ? <Lock size={14} /> : <DollarSign size={14} />}
-                {!isVerified ? "Locked Until Verification" : "View Payout Wallet"}
-              </button>
             </div>
-          </div>
+          )}
+
+          {/* TAB 2: MY PRODUCTS */}
+          {activeTab === "products" && (
+            <MyProductsView isVerified={isVerified} />
+          )}
+
+          {/* TAB 3: ORDERS */}
+          {activeTab === "orders" && (
+            <OrdersView />
+          )}
+
+          {/* TAB 4: EARNINGS */}
+          {activeTab === "earnings" && (
+            <EarningsView isVerified={isVerified} />
+          )}
+
+          {/* TAB 5: SETTINGS */}
+          {activeTab === "settings" && (
+            <SettingsView />
+          )}
         </div>
       </main>
     </div>

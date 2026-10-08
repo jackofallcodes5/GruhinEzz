@@ -17,6 +17,8 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:5173")
   .split(",")
   .map((o) => o.trim());
 
+const path = require("path");
+
 app.use(
   cors({
     origin: allowedOrigins,
@@ -25,6 +27,10 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+
+// Serve static uploaded images and files
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", app: "GruhinEzz E-Commerce Backend" });
