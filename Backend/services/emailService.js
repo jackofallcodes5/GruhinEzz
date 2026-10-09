@@ -1,13 +1,18 @@
 const { Resend } = require("resend");
 
-// Initialize Resend API Client
+// 1. Brevo (Sendinblue) HTTP API Key
+const brevoApiKey = process.env.BREVO_API_KEY;
+
+// 2. Resend API Key
 const resendApiKey = process.env.RESEND_API_KEY;
 const resendClient = resendApiKey ? new Resend(resendApiKey) : null;
 
-if (resendClient) {
+if (brevoApiKey) {
+  console.log("✅ Brevo Email Service is ready (Sends free emails to ANY recipient)");
+} else if (resendClient) {
   console.log("✅ Resend Email Service is ready");
 } else {
-  console.warn("⚠️ RESEND_API_KEY is missing in environment variables. Emails will not be sent.");
+  console.warn("⚠️ Neither BREVO_API_KEY nor RESEND_API_KEY is set in environment variables.");
 }
 
 async function sendOtpEmail(to, otp, userName = "there") {
@@ -37,32 +42,63 @@ async function sendOtpEmail(to, otp, userName = "there") {
     </div>
   `;
 
-  if (!resendClient) {
-    console.warn(`⚠️ Cannot send email: RESEND_API_KEY is not set. OTP generated for ${to}: ${otp}`);
-    return null;
-  }
+  // Strategy A: Brevo HTTP API (300 emails/day FREE to ANY recipient, no domain required)
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const senderEmail = process.env.SENDER_EMAIL || process.env.EMAIL_USER || "gruhinezzecom@gmail.com";
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": process.env.BREVO_API_KEY,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "GruhinEzz", email: senderEmail },
+          to: [{ email: to }],
+          subject,
+          htmlContent,
+        }),
+      });
 
-  try {
-    let resendFrom = process.env.RESEND_FROM || process.env.EMAIL_FROM;
-    // Resend free tier requires sending from onboarding@resend.dev unless custom domain is verified
-    if (!resendFrom || resendFrom.includes("gmail.com")) {
-      resendFrom = "GruhinEzz <onboarding@resend.dev>";
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.message || JSON.stringify(resData));
+      }
+      console.log(`✅ OTP email sent via Brevo HTTP API to ${to}:`, resData.messageId || resData);
+      return resData;
+    } catch (brevoErr) {
+      console.error("❌ Brevo email failed:", brevoErr.message);
+      throw brevoErr;
     }
-    const formattedFrom = resendFrom.includes("<") ? resendFrom : `GruhinEzz <${resendFrom}>`;
-
-    const data = await resendClient.emails.send({
-      from: formattedFrom,
-      to: [to],
-      subject,
-      html: htmlContent,
-    });
-
-    console.log("✅ OTP email sent via Resend HTTP API:", data);
-    return data;
-  } catch (resendErr) {
-    console.error("❌ Resend email failed:", resendErr.message);
-    throw resendErr;
   }
+
+  // Strategy B: Resend HTTP API
+  if (resendClient) {
+    try {
+      let resendFrom = process.env.RESEND_FROM || process.env.EMAIL_FROM;
+      if (!resendFrom || resendFrom.includes("gmail.com")) {
+        resendFrom = "GruhinEzz <onboarding@resend.dev>";
+      }
+      const formattedFrom = resendFrom.includes("<") ? resendFrom : `GruhinEzz <${resendFrom}>`;
+
+      const data = await resendClient.emails.send({
+        from: formattedFrom,
+        to: [to],
+        subject,
+        html: htmlContent,
+      });
+
+      console.log(`✅ OTP email sent via Resend HTTP API to ${to}:`, data);
+      return data;
+    } catch (resendErr) {
+      console.error("❌ Resend email failed:", resendErr.message);
+      throw resendErr;
+    }
+  }
+
+  console.warn(`⚠️ No email provider API key configured. OTP for ${to}: ${otp}`);
+  return null;
 }
 
 module.exports = { sendOtpEmail };
