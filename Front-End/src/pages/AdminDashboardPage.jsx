@@ -101,8 +101,32 @@ export default function AdminDashboardPage() {
     navigate("/admin/login", { replace: true });
   };
 
+  // Helper to convert database path or public ID to full Cloudinary HTTPS URL
+  const getCloudinaryUrl = (rawUrlOrPath) => {
+    if (!rawUrlOrPath) return "";
+    const str = String(rawUrlOrPath).trim();
+    if (str.startsWith("http://") || str.startsWith("https://")) {
+      return str;
+    }
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dgn3efbvf";
+    return `https://res.cloudinary.com/${cloudName}/image/upload/${str}`;
+  };
+
+  const openDocPreview = (title, rawUrl, uploader, userId) => {
+    if (!rawUrl) return;
+    const fullUrl = getCloudinaryUrl(rawUrl);
+    setPreviewDoc({
+      title,
+      fileName: rawUrl,
+      fileUrl: fullUrl,
+      uploader: uploader || "User",
+      userId: userId || "N/A",
+    });
+  };
+
   // Direct Cloudinary Document Download Handler
-  const handleDownloadDoc = async (fileUrl, fileName) => {
+  const handleDownloadDoc = async (rawUrl, fileName) => {
+    const fileUrl = getCloudinaryUrl(rawUrl);
     if (!fileUrl) return;
     setDownloadingDoc(true);
     try {
@@ -401,7 +425,7 @@ export default function AdminDashboardPage() {
                 Seller Verification Requests ({filteredSellers.length})
               </h2>
               <span className="text-xs text-[#C79AA7]">
-                Review profile, store setup, bank details, & Cloudinary KYC docs
+                DB Columns: `seller_profiles.id_proof_url`, `business_setups.store_logo_url`
               </span>
             </div>
 
@@ -497,18 +521,19 @@ export default function AdminDashboardPage() {
                         {/* Uploaded Files */}
                         <td className="py-4 px-4 align-top space-y-3 min-w-[200px]">
                           <div>
-                            <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">Identity Proof:</span>
+                            <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">
+                              Identity Proof (`id_proof_url`):
+                            </span>
                             {seller.id_proof_url ? (
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() =>
-                                    setPreviewDoc({
-                                      title: `Seller Identity Proof (${seller.id_type || "ID Document"})`,
-                                      fileName: seller.id_proof_url.split('/').pop(),
-                                      fileUrl: seller.id_proof_url,
-                                      uploader: seller.full_name || seller.user_name,
-                                      userId: seller.user_id,
-                                    })
+                                    openDocPreview(
+                                      `Seller Identity Proof (${seller.id_type || "ID Document"})`,
+                                      seller.id_proof_url,
+                                      seller.full_name || seller.user_name,
+                                      seller.user_id
+                                    )
                                   }
                                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#7A1F49]/40 hover:bg-[#7A1F49] text-pink-200 border border-[#7A1F49] text-[11px] font-medium transition-colors"
                                 >
@@ -527,18 +552,19 @@ export default function AdminDashboardPage() {
                           </div>
 
                           <div>
-                            <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">Store Logo:</span>
+                            <span className="text-[10px] text-[#C79AA7] block mb-1 font-semibold">
+                              Store Logo (`store_logo_url`):
+                            </span>
                             {seller.store_logo_url ? (
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() =>
-                                    setPreviewDoc({
-                                      title: "Store Logo Document",
-                                      fileName: seller.store_logo_url.split('/').pop(),
-                                      fileUrl: seller.store_logo_url,
-                                      uploader: seller.store_name || seller.user_name,
-                                      userId: seller.user_id,
-                                    })
+                                    openDocPreview(
+                                      "Store Logo Document",
+                                      seller.store_logo_url,
+                                      seller.store_name || seller.user_name,
+                                      seller.user_id
+                                    )
                                   }
                                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#7A1F49]/40 hover:bg-[#7A1F49] text-pink-200 border border-[#7A1F49] text-[11px] font-medium transition-colors"
                                 >
@@ -612,7 +638,7 @@ export default function AdminDashboardPage() {
                 NGO Partner Verification Requests ({filteredNgos.length})
               </h2>
               <span className="text-xs text-[#C79AA7]">
-                Review NGO legal documents, registration, & contact person identity
+                DB Columns: `ngo_documents.reg_cert_url`, `pan_card_url`, `cert_80g_12a_url`, `ngo_contacts.contact_id_proof_url`
               </span>
             </div>
 
@@ -688,17 +714,18 @@ export default function AdminDashboardPage() {
                         <td className="py-4 px-4 align-top space-y-2 min-w-[220px]">
                           {ngo.reg_cert_url && (
                             <div>
-                              <span className="text-[10px] text-[#C79AA7] block mb-0.5 font-semibold">Reg Cert:</span>
+                              <span className="text-[10px] text-[#C79AA7] block mb-0.5 font-semibold">
+                                Reg Cert (`reg_cert_url`):
+                              </span>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() =>
-                                    setPreviewDoc({
-                                      title: "NGO Registration Certificate",
-                                      fileName: ngo.reg_cert_url.split('/').pop(),
-                                      fileUrl: ngo.reg_cert_url,
-                                      uploader: ngo.ngo_name || ngo.user_name,
-                                      userId: ngo.user_id,
-                                    })
+                                    openDocPreview(
+                                      "NGO Registration Certificate",
+                                      ngo.reg_cert_url,
+                                      ngo.ngo_name || ngo.user_name,
+                                      ngo.user_id
+                                    )
                                   }
                                   className="flex items-center gap-1 px-2 py-1 rounded bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[10px]"
                                 >
@@ -716,17 +743,18 @@ export default function AdminDashboardPage() {
 
                           {ngo.pan_card_url && (
                             <div>
-                              <span className="text-[10px] text-[#C79AA7] block mb-0.5 font-semibold">PAN Card:</span>
+                              <span className="text-[10px] text-[#C79AA7] block mb-0.5 font-semibold">
+                                PAN Card (`pan_card_url`):
+                              </span>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() =>
-                                    setPreviewDoc({
-                                      title: "NGO PAN Card Document",
-                                      fileName: ngo.pan_card_url.split('/').pop(),
-                                      fileUrl: ngo.pan_card_url,
-                                      uploader: ngo.ngo_name || ngo.user_name,
-                                      userId: ngo.user_id,
-                                    })
+                                    openDocPreview(
+                                      "NGO PAN Card Document",
+                                      ngo.pan_card_url,
+                                      ngo.ngo_name || ngo.user_name,
+                                      ngo.user_id
+                                    )
                                   }
                                   className="flex items-center gap-1 px-2 py-1 rounded bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[10px]"
                                 >
@@ -744,17 +772,18 @@ export default function AdminDashboardPage() {
 
                           {ngo.cert_80g_12a_url && (
                             <div>
-                              <span className="text-[10px] text-[#C79AA7] block mb-0.5 font-semibold">80G / 12A Cert:</span>
+                              <span className="text-[10px] text-[#C79AA7] block mb-0.5 font-semibold">
+                                80G/12A (`cert_80g_12a_url`):
+                              </span>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() =>
-                                    setPreviewDoc({
-                                      title: "80G / 12A Tax Exemption Certificate",
-                                      fileName: ngo.cert_80g_12a_url.split('/').pop(),
-                                      fileUrl: ngo.cert_80g_12a_url,
-                                      uploader: ngo.ngo_name || ngo.user_name,
-                                      userId: ngo.user_id,
-                                    })
+                                    openDocPreview(
+                                      "80G / 12A Tax Exemption Certificate",
+                                      ngo.cert_80g_12a_url,
+                                      ngo.ngo_name || ngo.user_name,
+                                      ngo.user_id
+                                    )
                                   }
                                   className="flex items-center gap-1 px-2 py-1 rounded bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[10px]"
                                 >
@@ -772,17 +801,18 @@ export default function AdminDashboardPage() {
 
                           {ngo.contact_id_proof_url && (
                             <div>
-                              <span className="text-[10px] text-[#C79AA7] block mb-0.5 font-semibold">Contact Person ID:</span>
+                              <span className="text-[10px] text-[#C79AA7] block mb-0.5 font-semibold">
+                                Contact ID (`contact_id_proof_url`):
+                              </span>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   onClick={() =>
-                                    setPreviewDoc({
-                                      title: "Contact Person ID Proof",
-                                      fileName: ngo.contact_id_proof_url.split('/').pop(),
-                                      fileUrl: ngo.contact_id_proof_url,
-                                      uploader: ngo.contact_person_name || ngo.user_name,
-                                      userId: ngo.user_id,
-                                    })
+                                    openDocPreview(
+                                      "Contact Person ID Proof",
+                                      ngo.contact_id_proof_url,
+                                      ngo.contact_person_name || ngo.user_name,
+                                      ngo.user_id
+                                    )
                                   }
                                   className="flex items-center gap-1 px-2 py-1 rounded bg-purple-900/40 hover:bg-purple-800 text-purple-200 border border-purple-600 text-[10px]"
                                 >
@@ -858,7 +888,7 @@ export default function AdminDashboardPage() {
                 Platform Product Catalog ({filteredProducts.length})
               </h2>
               <span className="text-xs text-[#C79AA7]">
-                Live product listing directly from PostgreSQL DB & Cloudinary image storage
+                DB Column: `products.image_url`
               </span>
             </div>
 
@@ -884,7 +914,7 @@ export default function AdminDashboardPage() {
                       <tr key={prod.id} className="hover:bg-[#381B2C]/50 transition-colors">
                         <td className="py-4 px-4 align-top flex items-center gap-3">
                           <img
-                            src={prod.image_url || "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=200"}
+                            src={getCloudinaryUrl(prod.image_url) || "https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=200"}
                             alt={prod.title}
                             className="w-12 h-12 rounded-xl object-cover border border-[#5E2546]"
                           />
@@ -931,13 +961,12 @@ export default function AdminDashboardPage() {
                             <div className="flex items-center gap-1.5">
                               <button
                                 onClick={() =>
-                                  setPreviewDoc({
-                                    title: `Product Image - ${prod.title}`,
-                                    fileName: prod.image_url.split('/').pop(),
-                                    fileUrl: prod.image_url,
-                                    uploader: prod.seller_name || prod.seller_user_name,
-                                    userId: prod.seller_id,
-                                  })
+                                  openDocPreview(
+                                    `Product Image - ${prod.title}`,
+                                    prod.image_url,
+                                    prod.seller_name || prod.seller_user_name,
+                                    prod.seller_id
+                                  )
                                 }
                                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#7A1F49]/40 hover:bg-[#7A1F49] text-pink-200 border border-[#7A1F49] text-[11px]"
                               >
@@ -972,7 +1001,7 @@ export default function AdminDashboardPage() {
                 NGO Empowerment & Training Programs ({filteredPrograms.length})
               </h2>
               <span className="text-xs text-[#C79AA7]">
-                Programs created by verified NGOs to empower seller artisans
+                DB Column: `empowerment_programs.cover_image_url`
               </span>
             </div>
 
@@ -1167,7 +1196,7 @@ export default function AdminDashboardPage() {
             <div className="p-6 bg-[#1F0E18] space-y-4 overflow-y-auto flex-1">
               <div className="p-4 bg-[#2D1623] border border-[#4A2338] rounded-2xl flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <span className="text-xs text-[#C79AA7] block">Cloudinary Filename / Asset URL:</span>
+                  <span className="text-xs text-[#C79AA7] block">Cloudinary URL Fetched from DB:</span>
                   <span className="font-mono text-xs font-semibold text-pink-300 break-all">
                     {previewDoc.fileUrl}
                   </span>
@@ -1196,7 +1225,7 @@ export default function AdminDashboardPage() {
 
               <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
                 <button
-                  onClick={() => handleDownloadDoc(previewDoc.fileUrl, previewDoc.fileName)}
+                  onClick={() => handleDownloadDoc(previewDoc.fileUrl, previewDoc.title)}
                   disabled={downloadingDoc}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-lg shadow-emerald-900/40"
                 >
