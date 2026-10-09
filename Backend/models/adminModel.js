@@ -96,6 +96,96 @@ async function getAllNgos() {
   return rows;
 }
 
+// Get all products across all sellers for admin review
+async function getAllProductsAdmin() {
+  const { rows } = await pool.query(`
+    SELECT
+      p.id,
+      p.seller_id,
+      p.title,
+      p.description,
+      p.price,
+      p.original_price,
+      p.discount_pct,
+      p.category,
+      p.image_url,
+      p.images,
+      p.stock,
+      p.artisan_name,
+      p.seller_name,
+      p.seller_location,
+      p.artisan_story,
+      p.is_active,
+      p.created_at,
+      u.user_name AS seller_user_name,
+      u.email     AS seller_email,
+      bs.store_name
+    FROM products p
+    JOIN users u ON u.id = p.seller_id
+    LEFT JOIN business_setups bs ON bs.user_id = u.id
+    ORDER BY p.created_at DESC
+  `);
+  return rows;
+}
+
+// Get all NGO empowerment programs for admin review
+async function getAllNgoProgramsAdmin() {
+  const { rows } = await pool.query(`
+    SELECT
+      ep.*,
+      u.user_name AS ngo_user_name,
+      u.email     AS ngo_email,
+      np.ngo_name
+    FROM empowerment_programs ep
+    JOIN users u ON u.id = ep.ngo_id
+    LEFT JOIN ngo_profiles np ON np.user_id = u.id
+    ORDER BY ep.created_at DESC
+  `);
+  return rows;
+}
+
+// Get all registered users in system for admin management
+async function getAllUsersAdmin() {
+  const { rows } = await pool.query(`
+    SELECT
+      u.id,
+      u.role,
+      u.user_name,
+      u.email,
+      u.contact_no,
+      u.is_verified,
+      u.created_at,
+      sp.full_name AS seller_full_name,
+      bs.store_name,
+      np.ngo_name
+    FROM users u
+    LEFT JOIN seller_profiles sp ON sp.user_id = u.id
+    LEFT JOIN business_setups  bs ON bs.user_id = u.id
+    LEFT JOIN ngo_profiles    np ON np.user_id = u.id
+    ORDER BY u.created_at DESC
+  `);
+  return rows;
+}
+
+// Get overall platform statistics directly from DB
+async function getAdminOverviewStats() {
+  const { rows: sellers } = await pool.query("SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE is_verified = FALSE) AS pending FROM users WHERE role = 'seller'");
+  const { rows: ngos } = await pool.query("SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE is_verified = FALSE) AS pending FROM users WHERE role = 'ngo'");
+  const { rows: products } = await pool.query("SELECT COUNT(*) AS total FROM products");
+  const { rows: programs } = await pool.query("SELECT COUNT(*) AS total FROM empowerment_programs");
+  const { rows: users } = await pool.query("SELECT COUNT(*) AS total FROM users");
+
+  return {
+    totalSellers: parseInt(sellers[0].total, 10),
+    pendingSellers: parseInt(sellers[0].pending, 10),
+    totalNgos: parseInt(ngos[0].total, 10),
+    pendingNgos: parseInt(ngos[0].pending, 10),
+    totalProducts: parseInt(products[0].total, 10),
+    totalPrograms: parseInt(programs[0].total, 10),
+    totalUsers: parseInt(users[0].total, 10),
+  };
+}
+
 // Update verification status in users table
 async function updateVerificationStatus(userId, isVerified) {
   const { rows } = await pool.query(
@@ -108,5 +198,10 @@ async function updateVerificationStatus(userId, isVerified) {
 module.exports = {
   getAllSellers,
   getAllNgos,
+  getAllProductsAdmin,
+  getAllNgoProgramsAdmin,
+  getAllUsersAdmin,
+  getAdminOverviewStats,
   updateVerificationStatus,
 };
+

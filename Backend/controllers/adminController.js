@@ -59,6 +59,50 @@ async function getNgos(req, res) {
   }
 }
 
+// GET /api/admin/products
+async function getProducts(req, res) {
+  try {
+    const products = await adminModel.getAllProductsAdmin();
+    return res.status(200).json({ products });
+  } catch (err) {
+    console.error("getProducts error:", err);
+    return res.status(500).json({ message: "Failed to fetch admin products." });
+  }
+}
+
+// GET /api/admin/programs
+async function getPrograms(req, res) {
+  try {
+    const programs = await adminModel.getAllNgoProgramsAdmin();
+    return res.status(200).json({ programs });
+  } catch (err) {
+    console.error("getPrograms error:", err);
+    return res.status(500).json({ message: "Failed to fetch NGO programs." });
+  }
+}
+
+// GET /api/admin/users
+async function getUsers(req, res) {
+  try {
+    const users = await adminModel.getAllUsersAdmin();
+    return res.status(200).json({ users });
+  } catch (err) {
+    console.error("getUsers error:", err);
+    return res.status(500).json({ message: "Failed to fetch platform users." });
+  }
+}
+
+// GET /api/admin/overview
+async function getOverviewStats(req, res) {
+  try {
+    const stats = await adminModel.getAdminOverviewStats();
+    return res.status(200).json({ stats });
+  } catch (err) {
+    console.error("getOverviewStats error:", err);
+    return res.status(500).json({ message: "Failed to fetch platform overview stats." });
+  }
+}
+
 // POST /api/admin/verify-user
 async function verifyUser(req, res) {
   try {
@@ -85,5 +129,10 @@ module.exports = {
   adminLogin,
   getSellers,
   getNgos,
+  getProducts,
+  getPrograms,
+  getUsers,
+  getOverviewStats,
   verifyUser,
 };
+
