@@ -18,12 +18,10 @@ async function sendOtp(req, res) {
 
     const otp = createOtp(email);
 
-    try {
-      await sendOtpEmail(email, otp, userName || "there");
-    } catch (mailErr) {
-      console.error("Email send failed:", mailErr.message);
-      // Fallback log for development
-    }
+    // Do not await to prevent Render from hanging on SMTP blocks
+    sendOtpEmail(email, otp, userName || "there").catch((mailErr) => {
+      console.error("Email send failed (async):", mailErr.message);
+    });
 
     console.log(`🔑  OTP generated for ${email}: ${otp}`);
     return res.status(200).json({ message: "OTP sent successfully." });
