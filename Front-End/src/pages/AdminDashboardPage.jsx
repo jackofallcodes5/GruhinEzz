@@ -390,8 +390,8 @@ export default function AdminDashboardPage() {
                                   onClick={() =>
                                     setPreviewDoc({
                                       title: `Identity Proof (${seller.id_type || "ID Document"})`,
-                                      fileName: seller.id_proof_url.startsWith("S-") ? seller.id_proof_url : `S-IDProof-${seller.user_id}.pdf`,
-                                      fileUrl: `/api/documents/view/${seller.id_proof_url}`,
+                                      fileName: seller.id_proof_url.split('/').pop(),
+                                      fileUrl: seller.id_proof_url,
                                       uploader: seller.full_name || seller.user_name,
                                       userId: seller.user_id,
                                     })
@@ -403,7 +403,7 @@ export default function AdminDashboardPage() {
                                   View
                                 </button>
                                 <a
-                                  href={`http://localhost:5000/api/documents/download/${seller.id_proof_url}`}
+                                  href={seller.id_proof_url}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
@@ -417,8 +417,8 @@ export default function AdminDashboardPage() {
                               <span className="text-[#8A5468] text-[11px]">No file</span>
                             )}
                             {seller.id_proof_url && (
-                              <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
-                                {seller.id_proof_url.startsWith("S-") ? seller.id_proof_url : `S-IDProof-${seller.user_id}.pdf`}
+                              <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]" title={seller.id_proof_url.split('/').pop()}>
+                                {seller.id_proof_url.split('/').pop()}
                               </span>
                             )}
                           </div>
@@ -431,8 +431,8 @@ export default function AdminDashboardPage() {
                                   onClick={() =>
                                     setPreviewDoc({
                                       title: "Store Logo Document",
-                                      fileName: seller.store_logo_url.startsWith("S-") ? seller.store_logo_url : `S-StoreLogo-${seller.user_id}.png`,
-                                      fileUrl: `/api/documents/view/${seller.store_logo_url}`,
+                                      fileName: seller.store_logo_url.split('/').pop(),
+                                      fileUrl: seller.store_logo_url,
                                       uploader: seller.store_name || seller.user_name,
                                       userId: seller.user_id,
                                     })
@@ -444,7 +444,7 @@ export default function AdminDashboardPage() {
                                   View
                                 </button>
                                 <a
-                                  href={`http://localhost:5000/api/documents/download/${seller.store_logo_url}`}
+                                  href={seller.store_logo_url}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
@@ -459,7 +459,7 @@ export default function AdminDashboardPage() {
                             )}
                             {seller.store_logo_url && (
                               <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
-                                {seller.store_logo_url.startsWith("S-") ? seller.store_logo_url : `S-StoreLogo-${seller.user_id}.png`}
+                                {seller.store_logo_url.split('/').pop()}
                               </span>
                             )}
                           </div>
@@ -610,8 +610,8 @@ export default function AdminDashboardPage() {
                                   onClick={() =>
                                     setPreviewDoc({
                                       title: "NGO Registration Certificate",
-                                      fileName: ngo.reg_cert_url.startsWith("N-") ? ngo.reg_cert_url : `N-RegistrationCertificate-${ngo.user_id}.pdf`,
-                                      fileUrl: `/api/documents/view/${ngo.reg_cert_url}`,
+                                      fileName: ngo.reg_cert_url.split('/').pop(),
+                                      fileUrl: ngo.reg_cert_url,
                                       uploader: ngo.ngo_name || ngo.user_name,
                                       userId: ngo.user_id,
                                     })
@@ -621,7 +621,7 @@ export default function AdminDashboardPage() {
                                   <Eye size={12} /> View
                                 </button>
                                 <a
-                                  href={`http://localhost:5000/api/documents/download/${ngo.reg_cert_url}`}
+                                  href={ngo.reg_cert_url}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
@@ -630,7 +630,7 @@ export default function AdminDashboardPage() {
                                 </a>
                               </div>
                               <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
-                                {ngo.reg_cert_url.startsWith("N-") ? ngo.reg_cert_url : `N-RegistrationCertificate-${ngo.user_id}.pdf`}
+                                {ngo.reg_cert_url.split('/').pop()}
                               </span>
                             </div>
                           )}
@@ -643,8 +643,8 @@ export default function AdminDashboardPage() {
                                   onClick={() =>
                                     setPreviewDoc({
                                       title: "NGO PAN Card Document",
-                                      fileName: ngo.pan_card_url.startsWith("N-") ? ngo.pan_card_url : `N-PAN-${ngo.user_id}.pdf`,
-                                      fileUrl: `/api/documents/view/${ngo.pan_card_url}`,
+                                      fileName: ngo.pan_card_url.split('/').pop(),
+                                      fileUrl: ngo.pan_card_url,
                                       uploader: ngo.ngo_name || ngo.user_name,
                                       userId: ngo.user_id,
                                     })
@@ -654,7 +654,7 @@ export default function AdminDashboardPage() {
                                   <Eye size={12} /> View
                                 </button>
                                 <a
-                                  href={`http://localhost:5000/api/documents/download/${ngo.pan_card_url}`}
+                                  href={ngo.pan_card_url}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
@@ -663,7 +663,7 @@ export default function AdminDashboardPage() {
                                 </a>
                               </div>
                               <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
-                                {ngo.pan_card_url.startsWith("N-") ? ngo.pan_card_url : `N-PAN-${ngo.user_id}.pdf`}
+                                {ngo.pan_card_url.split('/').pop()}
                               </span>
                             </div>
                           )}
@@ -676,8 +676,8 @@ export default function AdminDashboardPage() {
                                   onClick={() =>
                                     setPreviewDoc({
                                       title: "80G / 12A Tax Exemption Certificate",
-                                      fileName: ngo.cert_80g_12a_url.startsWith("N-") ? ngo.cert_80g_12a_url : `N-Cert80G12A-${ngo.user_id}.pdf`,
-                                      fileUrl: `/api/documents/view/${ngo.cert_80g_12a_url}`,
+                                      fileName: ngo.cert_80g_12a_url.split('/').pop(),
+                                      fileUrl: ngo.cert_80g_12a_url,
                                       uploader: ngo.ngo_name || ngo.user_name,
                                       userId: ngo.user_id,
                                     })
@@ -687,7 +687,7 @@ export default function AdminDashboardPage() {
                                   <Eye size={12} /> View
                                 </button>
                                 <a
-                                  href={`http://localhost:5000/api/documents/download/${ngo.cert_80g_12a_url}`}
+                                  href={ngo.cert_80g_12a_url}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
@@ -696,7 +696,7 @@ export default function AdminDashboardPage() {
                                 </a>
                               </div>
                               <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
-                                {ngo.cert_80g_12a_url.startsWith("N-") ? ngo.cert_80g_12a_url : `N-Cert80G12A-${ngo.user_id}.pdf`}
+                                {ngo.cert_80g_12a_url.split('/').pop()}
                               </span>
                             </div>
                           )}
@@ -709,8 +709,8 @@ export default function AdminDashboardPage() {
                                   onClick={() =>
                                     setPreviewDoc({
                                       title: "Contact Person ID Proof",
-                                      fileName: ngo.contact_id_proof_url.startsWith("N-") ? ngo.contact_id_proof_url : `N-ContactID-${ngo.user_id}.pdf`,
-                                      fileUrl: `/api/documents/view/${ngo.contact_id_proof_url}`,
+                                      fileName: ngo.contact_id_proof_url.split('/').pop(),
+                                      fileUrl: ngo.contact_id_proof_url,
                                       uploader: ngo.contact_person_name || ngo.user_name,
                                       userId: ngo.user_id,
                                     })
@@ -720,7 +720,7 @@ export default function AdminDashboardPage() {
                                   <Eye size={12} /> View
                                 </button>
                                 <a
-                                  href={`http://localhost:5000/api/documents/download/${ngo.contact_id_proof_url}`}
+                                  href={ngo.contact_id_proof_url}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-900/40 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 text-[11px] transition-colors"
@@ -729,7 +729,7 @@ export default function AdminDashboardPage() {
                                 </a>
                               </div>
                               <span className="text-[10px] text-[#C79AA7] font-mono block mt-0.5 truncate max-w-[170px]">
-                                {ngo.contact_id_proof_url.startsWith("N-") ? ngo.contact_id_proof_url : `N-ContactID-${ngo.user_id}.pdf`}
+                                {ngo.contact_id_proof_url.split('/').pop()}
                               </span>
                             </div>
                           )}
@@ -837,7 +837,7 @@ export default function AdminDashboardPage() {
                 </p>
                 <div className="mt-4 flex items-center gap-3">
                   <a
-                    href={`http://localhost:5000/api/documents/download/${previewDoc.fileName}`}
+                    href={previewDoc.fileName}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-colors"
@@ -845,7 +845,7 @@ export default function AdminDashboardPage() {
                     <Download size={14} /> Download Individual Document
                   </a>
                   <a
-                    href={`http://localhost:5000/api/documents/view/${previewDoc.fileName}`}
+                    href={previewDoc.fileName}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#7A1F49] hover:bg-[#ae3a65] text-white text-xs font-semibold transition-colors"

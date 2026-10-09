@@ -16,11 +16,11 @@ import {
 } from "lucide-react";
 import "./dashboard.css";
 
-// Tab Sub-Views
 import MyProductsView from "../pages/seller/MyProductsView";
 import OrdersView from "../pages/seller/OrdersView";
 import EarningsView from "../pages/seller/EarningsView";
 import SettingsView from "../pages/seller/SettingsView";
+import EventsView from "../pages/seller/EventsView";
 
 export default function SellerDashboard({ initialTab = "overview" }) {
   const navigate = useNavigate();
@@ -81,6 +81,7 @@ export default function SellerDashboard({ initialTab = "overview" }) {
     { key: "products", icon: "📦", label: "My Products", locked: !isVerified },
     { key: "orders", icon: "📩", label: "Orders", locked: !isVerified },
     { key: "earnings", icon: "💰", label: "Earnings & Payouts", locked: !isVerified },
+    { key: "events", icon: "📅", label: "Events", locked: !isVerified },
     { key: "settings", icon: "⚙️", label: "Settings", locked: !isVerified },
   ];
 
@@ -396,6 +397,11 @@ export default function SellerDashboard({ initialTab = "overview" }) {
           {/* TAB 5: SETTINGS */}
           {activeTab === "settings" && (
             <SettingsView />
+          )}
+
+          {/* TAB 6: EVENTS */}
+          {activeTab === "events" && (
+            <EventsView />
           )}
         </div>
       </main>

@@ -152,4 +152,14 @@ async function searchProducts({ q = "", category, page = 1, limit = 20 } = {}) {
   };
 }
 
-module.exports = { getAllProducts, getProductById, searchProducts };
+async function getCategoriesWithSubcategories() {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT category FROM products WHERE is_active = TRUE AND category IS NOT NULL`
+  );
+  return rows.map(row => ({
+    name: row.category,
+    subcategories: [] // Stub for future subcategory support if needed
+  }));
+}
+
+module.exports = { getAllProducts, getProductById, searchProducts, getCategoriesWithSubcategories };

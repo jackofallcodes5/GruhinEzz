@@ -162,7 +162,7 @@ export default function ProductPage() {
     : [product.image_url || product.image || "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80"];
 
   const currentImage = images[activeImageIndex] || images[0];
-  const sellerName = product.artisan_name || (typeof product.seller === "object" ? product.seller?.name : product.seller) || "Woman Entrepreneur";
+  const sellerName = product.seller_name || product.seller_user_name || product.artisan_name || (typeof product.seller === "object" ? product.seller?.name : product.seller) || "Woman Entrepreneur";
   const originalPrice = product.original_price || product.originalPrice;
 
   const handleDecreaseQty = () => {
@@ -182,9 +182,15 @@ export default function ProductPage() {
     }
   };
 
-  const handleAddToCart = () => {
-    setCartSuccessMessage(`Added ${quantity} x ${productName} to your cart!`);
-    setTimeout(() => setCartSuccessMessage(null), 3000);
+  const handleAddToCart = async () => {
+    try {
+      await apiClient.post('/cart', { productId: product.id, quantity: quantity });
+      setCartSuccessMessage(`Added ${quantity} x ${productName} to your cart!`);
+      setTimeout(() => setCartSuccessMessage(null), 3000);
+    } catch(err) {
+      console.error("Failed to add to cart:", err);
+      alert("Failed to add to cart. Please log in.");
+    }
   };
 
   const handleOpenBuyNow = () => {

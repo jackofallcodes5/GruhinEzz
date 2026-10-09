@@ -1,4 +1,6 @@
 require("dotenv").config();
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first"); // Fix ENOTFOUND for Supabase pooler
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -13,6 +15,8 @@ const adminRoutes = require("./routes/adminRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const productRoutes = require("./routes/productRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
+const cartRoutes = require("./routes/cartRoutes");
+const empowermentProgramRoutes = require("./routes/empowermentProgramRoutes");
 
 const app = express();
 const path = require("path");
@@ -53,6 +57,8 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/documents", uploadRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/empowerment", empowermentProgramRoutes);
 
 // Fallback 404
 app.use((req, res) => {
@@ -66,3 +72,4 @@ testConnection().then(() => {
     console.log(`🚀 GruhinEzz backend running on http://localhost:${PORT}`);
   });
 });
+

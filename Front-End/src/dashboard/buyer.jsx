@@ -90,7 +90,26 @@ export default function BuyerDashboard() {
   const [wishlistIds, setWishlistIds] = useState([]);
 
   // Cart & Order State
-  const [cartCount, setCartCount] = useState(0);
+  const [cartItems, setCartItems] = useState([]);
+
+  const fetchCart = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await apiClient.get('/cart');
+      if (res.data?.success) {
+        setCartItems(res.data.cartItems || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cart:", err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
+
+  const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const cartTotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const [cartToast, setCartToast] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -195,10 +214,15 @@ export default function BuyerDashboard() {
     navigate("/login", { replace: true });
   };
 
-  const handleAddToCart = (product) => {
-    setCartCount((c) => c + 1);
-    setCartToast(`Added "${product.title || product.name}" to cart!`);
-    setTimeout(() => setCartToast(null), 2500);
+  const handleAddToCart = async (product) => {
+    try {
+      await apiClient.post('/cart', { productId: product.id, quantity: 1 });
+      await fetchCart();
+      setCartToast(`Added "${product.title || product.name}" to cart!`);
+      setTimeout(() => setCartToast(null), 2500);
+    } catch (err) {
+      console.error("Failed to add to cart:", err);
+    }
   };
 
   const handleWishlistToggle = (product, isSaved) => {
@@ -212,84 +236,115 @@ export default function BuyerDashboard() {
   };
 
   const handleInitiatePayment = (product) => {
-    setSelectedProduct(product);
-    setPaymentModalOpen(true);
-    setOrderResult(null);
+    handlePlaceOrder(product);
   };
 
-  const handlePlaceOrder = async () => {
-    if (!selectedProduct) return;
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handlePlaceOrder = async (targetProduct) => {
+    if (!targetProduct) return;
     setProcessingOrder(true);
+    
+    const isScriptLoaded = await loadRazorpayScript();
+    if (!isScriptLoaded) {
+      alert("Razorpay SDK failed to load. Are you online?");
+      setProcessingOrder(false);
+      return;
+    }
+
     try {
-      const pTitle = selectedProduct.title || selectedProduct.name;
-      const artisanName = selectedProduct.artisan_name || selectedProduct.artisan || "Woman Entrepreneur";
+      const pTitle = targetProduct.title || targetProduct.name;
+      const artisanName = targetProduct.seller_name || targetProduct.seller_user_name || targetProduct.artisan_name || "Woman Entrepreneur";
       const res = await apiClient.post("/payment/create-order", {
-        userId: user.id,
-        amount: selectedProduct.price,
-        customerName: user.userName || user.name,
-        customerEmail: user.email,
-        customerPhone: user.contactNo || "9876543210",
-        productTitle: pTitle,
+        amount: targetProduct.price
       });
 
-      const orderId = res.data?.orderId || `order_${Date.now()}`;
-      const newOrder = {
-        id: orderId,
-        date: "Just now",
-        product: {
-          id: selectedProduct.id,
-          name: pTitle,
-          image: selectedProduct.image_url || selectedProduct.images?.[0] || selectedProduct.image,
-          artisan: artisanName,
-          price: selectedProduct.price,
-          quantity: 1,
-          totalAmount: selectedProduct.price,
+      const { orderId, amount, currency, keyId } = res.data;
+
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency,
+        name: "GruhinEzz",
+        description: `Purchase of ${pTitle}`,
+        image: logoImg,
+        order_id: orderId,
+        handler: async function (response) {
+          try {
+            await apiClient.post("/payment/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              productId: targetProduct.id,
+              sellerId: targetProduct.seller_id || 10,
+              buyerId: user?.id,
+              amount: targetProduct.price,
+              customerName: user?.userName || user?.name || "Buyer",
+              customerEmail: user?.email || "buyer@example.com",
+              customerPhone: user?.contactNo || "9876543210",
+              productTitle: pTitle,
+              productImageUrl: targetProduct.image_url || targetProduct.images?.[0] || targetProduct.image,
+              quantity: targetProduct.id === "cart_checkout" ? cartCount : 1,
+            });
+          } catch(e) { console.error("Payment verification failed", e); }
+          
+          const newOrder = {
+            id: response.razorpay_payment_id || `order_${Date.now()}`,
+            date: "Just now",
+            product: {
+              id: targetProduct.id,
+              name: pTitle,
+              image: targetProduct.image_url || targetProduct.images?.[0] || targetProduct.image,
+              artisan: artisanName,
+              price: targetProduct.price,
+              quantity: targetProduct.id === "cart_checkout" ? cartCount : 1,
+              totalAmount: targetProduct.price,
+            },
+            status: "Processing",
+            trackingId: `RZP-TRK-${Math.floor(10000 + Math.random() * 90000)}`,
+            deliveryDate: "Expected delivery in 3-4 days",
+          };
+
+          setBuyerOrders((prev) => [newOrder, ...prev]);
+
+          alert(`Order placed successfully! Transaction ID: ${response.razorpay_payment_id}`);
+          
+          if (targetProduct.id === "cart_checkout") {
+            try {
+              await apiClient.delete('/cart');
+              await fetchCart();
+            } catch (err) {
+              console.error("Failed to clear cart:", err);
+            }
+          }
         },
-        status: "Processing",
-        trackingId: `CF-TRK-${Math.floor(10000 + Math.random() * 90000)}`,
-        deliveryDate: "Expected delivery in 3-4 days",
+        prefill: {
+          name: user?.userName || user?.name || "Buyer",
+          email: user?.email || "buyer@example.com",
+          contact: user?.contactNo || "9876543210",
+        },
+        theme: {
+          color: "#48154c",
+        },
       };
 
-      setBuyerOrders((prev) => [newOrder, ...prev]);
-
-      setOrderResult({
-        success: true,
-        orderId: orderId,
-        amount: selectedProduct.price,
-        productTitle: pTitle,
-        artisan: artisanName,
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.on('payment.failed', function (response){
+        alert("Payment Failed: " + response.error.description);
       });
+      paymentObject.open();
+
     } catch (err) {
       console.warn("Order creation warning:", err.message);
-      const pTitle = selectedProduct.title || selectedProduct.name;
-      const artisanName = selectedProduct.artisan_name || selectedProduct.artisan || "Woman Entrepreneur";
-      const orderId = `order_${Date.now()}`;
-      const newOrder = {
-        id: orderId,
-        date: "Just now",
-        product: {
-          id: selectedProduct.id,
-          name: pTitle,
-          image: selectedProduct.image_url || selectedProduct.images?.[0] || selectedProduct.image,
-          artisan: artisanName,
-          price: selectedProduct.price,
-          quantity: 1,
-          totalAmount: selectedProduct.price,
-        },
-        status: "Processing",
-        trackingId: `CF-TRK-${Math.floor(10000 + Math.random() * 90000)}`,
-        deliveryDate: "Expected delivery in 3-4 days",
-      };
-
-      setBuyerOrders((prev) => [newOrder, ...prev]);
-
-      setOrderResult({
-        success: true,
-        orderId: orderId,
-        amount: selectedProduct.price,
-        productTitle: pTitle,
-        artisan: artisanName,
-      });
+      alert("Failed to initialize Razorpay checkout. Check server connection.");
     } finally {
       setProcessingOrder(false);
     }
@@ -372,7 +427,8 @@ export default function BuyerDashboard() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <button
-                className="p-2.5 rounded-2xl bg-white border border-[#e2d3c8] text-[#48154c] hover:bg-[#f5ece6] transition-colors relative shadow-2xs"
+                onClick={() => setActiveNav("Cart")}
+                className={`p-2.5 rounded-2xl bg-white border border-[#e2d3c8] text-[#48154c] hover:bg-[#f5ece6] transition-colors relative shadow-2xs ${activeNav === "Cart" ? "ring-2 ring-[#ae3a65]" : ""}`}
                 title="Shopping Cart"
               >
                 <ShoppingBag size={20} />
@@ -955,87 +1011,91 @@ export default function BuyerDashboard() {
             </form>
           </div>
         )}
-      </main>
 
-      {/* Payment Modal */}
-      {paymentModalOpen && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#e2d3c8] text-[#2d2130] relative">
-            <button
-              onClick={() => setPaymentModalOpen(false)}
-              className="absolute top-4 right-4 text-[#7a6070] hover:text-[#48154c] text-lg font-bold"
-            >
-              ✕
-            </button>
+        {/* VIEW 6: CART */}
+        {activeNav === "Cart" && (
+          <div className="space-y-6">
+            <div className="pb-4 border-b border-[#e2d3c8]">
+              <h2 className="text-xl sm:text-2xl font-bold text-[#48154c] flex items-center gap-2">
+                <ShoppingBag size={24} className="text-[#ae3a65]" />
+                Your Shopping Cart
+              </h2>
+              <p className="text-xs text-[#7a6070] mt-0.5">
+                Review your items and proceed to checkout
+              </p>
+            </div>
 
-            {!orderResult ? (
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-2xl text-[#48154c]">🛍️</span>
-                  <div>
-                    <h3 className="font-bold text-lg text-[#48154c]">Purchase Homemade Craft</h3>
-                    <p className="text-xs text-[#7a6070]">Supporting Household Women Entrepreneurs</p>
+            {cartItems.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-4">
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="bg-white rounded-3xl border border-[#e2d3c8] p-4 flex items-center gap-4 shadow-xs">
+                      <img src={item.image_url || item.images?.[0] || item.image || "https://via.placeholder.com/150"} className="w-20 h-20 rounded-xl object-cover bg-[#f5ece6]" alt={item.title || item.name} />
+                      <div className="flex-1">
+                        <h3 className="font-bold text-[#2d2130]">{item.title || item.name}</h3>
+                        <p className="text-xs text-[#7a6070]">By {item.artisan_name || item.artisan || "Woman Entrepreneur"}</p>
+                        <p className="font-bold text-[#48154c] mt-1">₹{item.price} <span className="text-[#7a6070] font-normal text-xs">x {item.quantity}</span></p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={async () => { await apiClient.put(`/cart/${item.id}`, { quantity: item.quantity + 1 }); fetchCart(); }} className="px-3 py-1 bg-[#f5ece6] hover:bg-[#e2d3c8] rounded-lg font-bold transition-colors">+</button>
+                        <span className="font-semibold text-[#48154c] w-4 text-center">{item.quantity}</span>
+                        <button onClick={async () => { await apiClient.put(`/cart/${item.id}`, { quantity: Math.max(1, item.quantity - 1) }); fetchCart(); }} className="px-3 py-1 bg-[#f5ece6] hover:bg-[#e2d3c8] rounded-lg font-bold transition-colors">-</button>
+                        <button onClick={async () => { await apiClient.delete(`/cart/${item.id}`); fetchCart(); }} className="text-[#ae3a65] text-xs font-bold ml-2 hover:underline">Remove</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-white rounded-3xl p-6 border border-[#e2d3c8] h-fit sticky top-20 shadow-xs">
+                  <h3 className="font-bold text-lg mb-4 text-[#48154c]">Order Summary</h3>
+                  <div className="flex justify-between mb-2 text-sm text-[#5a4855]">
+                    <span>Items Total ({cartCount})</span>
+                    <span>₹{cartTotal}</span>
                   </div>
-                </div>
-
-                <div className="bg-[#f5ece6] p-4 rounded-2xl mb-4 space-y-2 text-sm">
-                  <p className="font-semibold text-[#2d2130]">{selectedProduct.title || selectedProduct.name}</p>
-                  <p className="text-xs text-[#7a6070]">
-                    Artisan: {selectedProduct.artisan_name || selectedProduct.artisan || "Woman Entrepreneur"}
-                  </p>
-                  <div className="flex justify-between items-center pt-2 border-t border-[#e2d3c8] font-bold text-[#48154c] text-base">
-                    <span>Total Amount:</span>
-                    <span>₹{selectedProduct.price}</span>
+                  <div className="flex justify-between mb-4 text-sm text-[#5a4855]">
+                    <span>Delivery</span>
+                    <span className="text-[#10b981] font-bold">FREE</span>
                   </div>
+                  <div className="flex justify-between font-bold text-lg border-t border-[#f5ece6] pt-4 mb-6 text-[#48154c]">
+                    <span>Total Amount</span>
+                    <span>₹{cartTotal}</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      handleInitiatePayment({
+                        id: "cart_checkout",
+                        title: `Cart Checkout (${cartCount} items)`,
+                        price: cartTotal,
+                        artisan_name: "Multiple Artisans",
+                        image_url: cartItems[0]?.image_url || cartItems[0]?.images?.[0] || cartItems[0]?.image || "",
+                      });
+                    }}
+                    className="w-full py-3 bg-[#48154c] text-white rounded-xl font-bold hover:bg-[#38103c] transition-colors shadow-md"
+                  >
+                    Proceed to Checkout
+                  </button>
                 </div>
-
-                <div className="bg-[#efe5e5] p-3 rounded-xl mb-5 border border-[#e2d3c8] text-xs text-[#48154c]">
-                  <p className="font-bold mb-0.5">ℹ️ Cashfree Payment Gateway On Hold</p>
-                  <p className="text-[#7a6070]">Real money online payment gateway will activate automatically once hosted live. You can place a test order below to record it in the database.</p>
-                </div>
-
-                <button
-                  onClick={handlePlaceOrder}
-                  disabled={processingOrder}
-                  className="w-full py-3 bg-gradient-to-r from-[#48154c] to-[#ae3a65] text-white font-semibold rounded-2xl shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2"
-                >
-                  {processingOrder ? (
-                    <span>Placing Order...</span>
-                  ) : (
-                    <>
-                      <span>Place Order (₹{selectedProduct.price})</span>
-                      <span className="text-base">✓</span>
-                    </>
-                  )}
-                </button>
               </div>
             ) : (
-              <div className="text-center py-4 space-y-4">
-                <div className="w-16 h-16 bg-[#48154c] text-white rounded-full flex items-center justify-center text-3xl mx-auto shadow-md">
-                  ✓
-                </div>
-                <h3 className="font-bold text-xl text-[#48154c]">Order Placed Successfully!</h3>
-                <p className="text-sm text-[#7a6070]">
-                  Thank you for supporting <strong>{orderResult.artisan}</strong>! Your order for <strong>{orderResult.productTitle}</strong> (₹{orderResult.amount}) has been recorded.
+              <div className="bg-white rounded-3xl p-10 border border-[#e2d3c8] text-center shadow-xs">
+                <span className="text-4xl block mb-3">🛍️</span>
+                <h3 className="font-bold text-lg text-[#48154c] mb-1">
+                  Your cart is empty
+                </h3>
+                <p className="text-xs text-[#7a6070] mb-5">
+                  Explore our handcrafted collection and add items to your cart.
                 </p>
-
-                <div className="bg-[#f5ece6] p-4 rounded-2xl text-xs text-left space-y-1 font-mono text-[#48154c]">
-                  <p>Order ID: {orderResult.orderId}</p>
-                  <p>Status: ORDER PLACED (DB RECORDED)</p>
-                  <p>Payment Mode: Cashfree PG (On Hold for Live)</p>
-                </div>
-
                 <button
-                  onClick={() => setPaymentModalOpen(false)}
-                  className="w-full py-2.5 bg-[#48154c] text-white font-medium rounded-xl hover:bg-[#320e35] transition-colors"
+                  onClick={() => setActiveNav("Marketplace")}
+                  className="px-6 py-2.5 bg-[#48154c] text-white rounded-xl text-xs font-bold hover:bg-[#38103c] transition-colors"
                 >
-                  Close Receipt
+                  Return to Marketplace
                 </button>
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </main>
+
     </div>
   );
 }

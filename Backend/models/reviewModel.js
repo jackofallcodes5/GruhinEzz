@@ -12,7 +12,7 @@ async function getReviewsByProductId(productId) {
       r.rating,
       r.comment,
       r.created_at,
-      u.full_name AS user_name,
+      u.user_name AS user_name,
       u.email AS user_email
     FROM reviews r
     LEFT JOIN users u ON r.user_id = u.id

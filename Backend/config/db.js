@@ -5,9 +5,9 @@ require("dotenv").config();
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }, // required for Supabase
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  max: 20, 
+  idleTimeoutMillis: 10000, // Eagerly close idle local connections BEFORE Supabase PgBouncer drops them
+  connectionTimeoutMillis: 10000, // Give it a bit more time to connect
   keepAlive: true,
 });
 

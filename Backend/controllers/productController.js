@@ -13,14 +13,25 @@ const productModel = require("../models/productModel");
 async function getProducts(req, res) {
   try {
     const { category, subcategory, search, sort, page, limit } = req.query;
-    const result = await productModel.getProducts({
-      category,
-      subcategory,
-      search,
-      sort,
-      page: parseInt(page, 10) || 1,
-      limit: parseInt(limit, 10) || 12,
-    });
+    const parsedPage = parseInt(page, 10) || 1;
+    const parsedLimit = parseInt(limit, 10) || 12;
+    let result;
+    
+    if (search) {
+      result = await productModel.searchProducts({
+        q: search,
+        category,
+        page: parsedPage,
+        limit: parsedLimit,
+      });
+    } else {
+      result = await productModel.getAllProducts({
+        category,
+        page: parsedPage,
+        limit: parsedLimit,
+      });
+    }
+    
     return res.status(200).json({ success: true, ...result });
   } catch (err) {
     console.error("❌ Error in getProducts:", err);

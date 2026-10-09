@@ -5,9 +5,13 @@ import apiClient from "../services/apiClient";
 import logoImg from "../assets/logo.png";
 import {
   Lock, CheckCircle2, AlertTriangle, HeartHandshake, Users,
-  BarChart3, Sparkles, Plus, RefreshCw, Award
+  BarChart3, Sparkles, Plus, RefreshCw, Award, Home, Leaf, Handshake, BarChart2, Settings
 } from "lucide-react";
 import "./dashboard.css";
+import NgoProgramsView from "./ngo_views/NgoProgramsView";
+import NgoPartnershipsView from "./ngo_views/NgoPartnershipsView";
+import NgoReportsView from "./ngo_views/NgoReportsView";
+import NgoSettingsView from "./ngo_views/NgoSettingsView";
 
 export default function NgoDashboard() {
   const navigate = useNavigate();
@@ -16,6 +20,18 @@ export default function NgoDashboard() {
   const [loading, setLoading] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [stats, setStats] = useState({ eventsHosted: 0, beneficiariesEnrolled: 0, impactScore: 0 });
+
+  const fetchStats = async () => {
+    try {
+      const res = await apiClient.get("/empowerment/ngo/stats");
+      if (res.data?.success) {
+        setStats(res.data.stats);
+      }
+    } catch (err) {
+      console.error("Failed to load NGO stats:", err);
+    }
+  };
 
   const checkUserVerification = async (parsedUser) => {
     try {
@@ -49,6 +65,9 @@ export default function NgoDashboard() {
     setUser(parsed);
     setIsVerified(Boolean(parsed.isVerified));
     checkUserVerification(parsed);
+    if (parsed.role === "ngo" && parsed.isVerified) {
+      fetchStats();
+    }
   }, [navigate]);
 
   const handleLogout = async () => {
@@ -59,11 +78,11 @@ export default function NgoDashboard() {
   if (!user) return null;
 
   const navItems = [
-    { key: "overview", icon: "🏠", label: "Overview" },
-    { key: "programs", icon: "🌱", label: "Empowerment Programs", locked: !isVerified },
-    { key: "partnerships", icon: "🤝", label: "Partnerships", locked: !isVerified },
-    { key: "reports", icon: "📊", label: "Impact Reports", locked: !isVerified },
-    { key: "settings", icon: "⚙️", label: "Settings", locked: !isVerified },
+    { key: "overview", icon: <Home size={18} />, label: "Overview" },
+    { key: "programs", icon: <Leaf size={18} />, label: "Events", locked: !isVerified },
+    { key: "partnerships", icon: <Handshake size={18} />, label: "Partnerships", locked: !isVerified },
+    { key: "reports", icon: <BarChart2 size={18} />, label: "Impact Reports", locked: !isVerified },
+    { key: "settings", icon: <Settings size={18} />, label: "Settings", locked: !isVerified },
   ];
 
   return (
@@ -119,7 +138,7 @@ export default function NgoDashboard() {
         </nav>
 
         <button className="dashboard-logout" onClick={handleLogout}>
-          🚪 Logout
+          <LogOut size={16} className="inline mr-1" /> Logout
         </button>
       </div>
 
@@ -146,10 +165,10 @@ export default function NgoDashboard() {
         <header className="dashboard-header flex items-center justify-between">
           <div>
             <h1 className="dashboard-header__title flex items-center gap-2">
-              Welcome, {user.userName}! 🤝
+              Welcome, {user.userName}!
               {isVerified && (
                 <span className="px-2.5 py-0.5 rounded-full bg-purple-700 text-white text-xs font-bold font-sans">
-                  Verified NGO Partner ✅
+                  Verified NGO Partner <CheckCircle2 size={12} className="inline ml-1" />
                 </span>
               )}
             </h1>
@@ -200,7 +219,7 @@ export default function NgoDashboard() {
                 </div>
                 <div>
                   <h3 className="font-bold text-base text-purple-950 font-serif">
-                    NGO Partner Portal Fully Unlocked! 🌱
+                    NGO Partner Portal Fully Unlocked!
                   </h3>
                   <p className="text-xs text-purple-800 leading-relaxed mt-0.5">
                     Congratulations! Your NGO legal documents & representative credentials have been verified by GruhinEzz Admin. You can now launch skill development programs, manage beneficiary women, and access community grants!
@@ -215,14 +234,15 @@ export default function NgoDashboard() {
         </div>
 
         {/* Dashboard Main Content Grid */}
-        <div className="p-6 space-y-6">
+        {activeTab === "overview" && (
+          <div className="p-6 space-y-6">
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white border border-[#e2d3c8] rounded-2xl p-5 shadow-xs flex items-center justify-between">
               <div>
                 <p className="text-xs text-[#7a6070]">Beneficiary Women</p>
                 <p className="text-2xl font-bold text-[#2d2130] mt-1">
-                  {isVerified ? "128 Enrolled" : "0 (Locked)"}
+                  {isVerified ? `${stats.beneficiariesEnrolled} Enrolled` : "0 (Locked)"}
                 </p>
               </div>
               <div className={`p-3 rounded-xl ${isVerified ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
@@ -232,9 +252,9 @@ export default function NgoDashboard() {
 
             <div className="bg-white border border-[#e2d3c8] rounded-2xl p-5 shadow-xs flex items-center justify-between">
               <div>
-                <p className="text-xs text-[#7a6070]">Skill Training Programs</p>
+                <p className="text-xs text-[#7a6070]">Events Hosted</p>
                 <p className="text-2xl font-bold text-[#2d2130] mt-1">
-                  {isVerified ? "6 Active" : "0 (Locked)"}
+                  {isVerified ? `${stats.eventsHosted} Active` : "0 (Locked)"}
                 </p>
               </div>
               <div className={`p-3 rounded-xl ${isVerified ? "bg-pink-100 text-pink-700" : "bg-gray-100 text-gray-400"}`}>
@@ -246,7 +266,7 @@ export default function NgoDashboard() {
               <div>
                 <p className="text-xs text-[#7a6070]">Community Impact Score</p>
                 <p className="text-2xl font-bold text-[#2d2130] mt-1">
-                  {isVerified ? "94.5 / 100" : "N/A (Locked)"}
+                  {isVerified ? `${stats.impactScore} / 100` : "N/A (Locked)"}
                 </p>
               </div>
               <div className={`p-3 rounded-xl ${isVerified ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-400"}`}>
@@ -263,28 +283,28 @@ export default function NgoDashboard() {
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <span className={`p-2.5 rounded-2xl text-lg ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
-                  🌱
+                  <Leaf size={20} />
                 </span>
                 {!isVerified ? (
                   <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 flex items-center gap-1">
                     <Lock size={12} /> Locked
                   </span>
                 ) : (
-                  <span className="px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 text-[11px] font-bold border border-purple-300">
-                    Unlocked ✅
+                  <span className="px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 text-[11px] font-bold border border-purple-300 flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Unlocked
                   </span>
                 )}
               </div>
-              <h3 className="font-serif text-lg font-bold text-[#2d2130]">Launch Women Skill Program</h3>
+              <h3 className="font-serif text-lg font-bold text-[#2d2130]">Launch Skill Event</h3>
               <p className="text-xs text-[#7a6070] mt-1 leading-relaxed">
-                Create new artisan training, micro-entrepreneurship workshops, and financial literacy drives for women.
+                Create new artisan training events, micro-entrepreneurship workshops, and financial literacy drives for women.
               </p>
               <button
                 onClick={() => {
                   if (!isVerified) {
                     alert("🔒 NGO features are locked until Admin verifies your registration documents.");
                   } else {
-                    alert("✨ NGO Program Creation Unlocked! You can now launch new empowerment programs.");
+                    alert("✨ NGO Event Creation Unlocked! You can now launch new events.");
                   }
                 }}
                 className={`mt-5 w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
@@ -294,7 +314,7 @@ export default function NgoDashboard() {
                 }`}
               >
                 {!isVerified ? <Lock size={14} /> : <Plus size={14} />}
-                {!isVerified ? "Locked Until Verification" : "Launch New Program"}
+                {!isVerified ? "Locked Until Verification" : "Launch New Event"}
               </button>
             </div>
 
@@ -304,15 +324,15 @@ export default function NgoDashboard() {
             }`}>
               <div className="flex items-center justify-between mb-3">
                 <span className={`p-2.5 rounded-2xl text-lg ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
-                  👩‍🌾
+                  <Users size={20} />
                 </span>
                 {!isVerified ? (
                   <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 flex items-center gap-1">
                     <Lock size={12} /> Locked
                   </span>
                 ) : (
-                  <span className="px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 text-[11px] font-bold border border-purple-300">
-                    Unlocked ✅
+                  <span className="px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 text-[11px] font-bold border border-purple-300 flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Unlocked
                   </span>
                 )}
               </div>
@@ -337,9 +357,15 @@ export default function NgoDashboard() {
                 {!isVerified ? <Lock size={14} /> : <Users size={14} />}
                 {!isVerified ? "Locked Until Verification" : "Manage Beneficiaries"}
               </button>
-            </div>
           </div>
         </div>
+      </div>
+    )}
+
+        {activeTab === "programs" && <NgoProgramsView />}
+        {activeTab === "partnerships" && <NgoPartnershipsView />}
+        {activeTab === "reports" && <NgoReportsView />}
+        {activeTab === "settings" && <NgoSettingsView />}
       </main>
     </div>
   );
