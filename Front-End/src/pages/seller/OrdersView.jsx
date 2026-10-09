@@ -325,7 +325,9 @@ export default function OrdersView() {
           ))
         ) : (
           <div className="bg-white rounded-3xl p-10 border border-[#e2d3c8] text-center">
-            <span className="text-4xl block mb-2">📦</span>
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[#f5ece6] text-[#48154c] flex items-center justify-center">
+              <ShoppingBag size={28} />
+            </div>
             <h3 className="font-bold text-base text-[#48154c] mb-1">
               No orders found
             </h3>

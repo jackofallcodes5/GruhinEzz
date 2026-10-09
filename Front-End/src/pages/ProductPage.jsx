@@ -25,6 +25,7 @@ import {
   UserCheck,
   MessageSquarePlus,
   Loader2,
+  Package,
 } from "lucide-react";
 
 export default function ProductPage() {
@@ -140,7 +141,9 @@ export default function ProductPage() {
     return (
       <div className="min-h-screen bg-[#efe5e5] flex flex-col items-center justify-center p-6 text-center">
         <div className="bg-white p-8 rounded-3xl border border-[#e2d3c8] max-w-md w-full shadow-md">
-          <span className="text-4xl mb-4 block">📦</span>
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#f5ece6] text-[#48154c] flex items-center justify-center">
+            <Package size={28} />
+          </div>
           <h2 className="text-xl font-bold text-[#48154c] mb-2">Product Not Found</h2>
           <p className="text-sm text-[#7a6070] mb-6">
             {error || "The requested handmade craft might have been updated or removed."}

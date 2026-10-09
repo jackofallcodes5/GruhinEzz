@@ -13,6 +13,12 @@ import {
   Sparkles,
   Plus,
   RefreshCw,
+  LayoutDashboard,
+  Calendar,
+  Settings,
+  LogOut,
+  CreditCard,
+  Sliders,
 } from "lucide-react";
 import "./dashboard.css";
 
@@ -77,12 +83,12 @@ export default function SellerDashboard({ initialTab = "overview" }) {
   if (!user) return null;
 
   const navItems = [
-    { key: "overview", icon: "🏠", label: "Overview" },
-    { key: "products", icon: "📦", label: "My Products", locked: !isVerified },
-    { key: "orders", icon: "📩", label: "Orders", locked: !isVerified },
-    { key: "earnings", icon: "💰", label: "Earnings & Payouts", locked: !isVerified },
-    { key: "events", icon: "📅", label: "Events", locked: !isVerified },
-    { key: "settings", icon: "⚙️", label: "Settings", locked: !isVerified },
+    { key: "overview", icon: LayoutDashboard, label: "Overview" },
+    { key: "products", icon: Package, label: "My Products", locked: !isVerified },
+    { key: "orders", icon: ShoppingBag, label: "Orders", locked: !isVerified },
+    { key: "earnings", icon: DollarSign, label: "Earnings & Payouts", locked: !isVerified },
+    { key: "events", icon: Calendar, label: "Events", locked: !isVerified },
+    { key: "settings", icon: Settings, label: "Settings", locked: !isVerified },
   ];
 
   return (
@@ -112,33 +118,36 @@ export default function SellerDashboard({ initialTab = "overview" }) {
         </div>
 
         <nav className="dashboard-nav">
-          {navItems.map((item) => (
-            <a
-              key={item.key}
-              href="#"
-              className={`dashboard-nav__item ${activeTab === item.key ? "active" : ""} ${
-                item.locked ? "opacity-60 cursor-not-allowed" : ""
-              }`}
-              onClick={(e) => {
-                e.preventDefault();
-                if (item.locked) {
-                  alert("🔒 Feature Locked: Your account is currently under Admin Verification. Once verified by the Admin, all seller features will be unlocked!");
-                  return;
-                }
-                setActiveTab(item.key);
-                setMobileNavOpen(false);
-              }}
-            >
-              <span className="flex items-center gap-2">
-                {item.icon} {item.label}
-              </span>
-              {item.locked && <Lock size={13} className="ml-auto text-[#ae3a65]" />}
-            </a>
-          ))}
+          {navItems.map((item) => {
+            const IconComp = item.icon;
+            return (
+              <a
+                key={item.key}
+                href="#"
+                className={`dashboard-nav__item ${activeTab === item.key ? "active" : ""} ${
+                  item.locked ? "opacity-60 cursor-not-allowed" : ""
+                }`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (item.locked) {
+                    alert("🔒 Feature Locked: Your account is currently under Admin Verification. Once verified by the Admin, all seller features will be unlocked!");
+                    return;
+                  }
+                  setActiveTab(item.key);
+                  setMobileNavOpen(false);
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <IconComp size={18} /> {item.label}
+                </span>
+                {item.locked && <Lock size={13} className="ml-auto text-[#ae3a65]" />}
+              </a>
+            );
+          })}
         </nav>
 
-        <button className="dashboard-logout" onClick={handleLogout}>
-          🚪 Logout
+        <button className="dashboard-logout flex items-center justify-center gap-2" onClick={handleLogout}>
+          <LogOut size={16} /> Logout
         </button>
       </div>
 
@@ -299,8 +308,8 @@ export default function SellerDashboard({ initialTab = "overview" }) {
                   isVerified ? "border-[#e2d3c8] hover:border-[#ae3a65]" : "border-gray-200 bg-gray-50/70 opacity-90"
                 }`}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`p-2.5 rounded-2xl text-lg ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
-                      🛍️
+                    <span className={`p-2.5 rounded-2xl ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
+                      <Package size={20} />
                     </span>
                     {!isVerified ? (
                       <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 flex items-center gap-1">
@@ -340,8 +349,8 @@ export default function SellerDashboard({ initialTab = "overview" }) {
                   isVerified ? "border-[#e2d3c8] hover:border-[#ae3a65]" : "border-gray-200 bg-gray-50/70 opacity-90"
                 }`}>
                   <div className="flex items-center justify-between mb-3">
-                    <span className={`p-2.5 rounded-2xl text-lg ${isVerified ? "bg-[#f5ece6] text-[#48154c]" : "bg-gray-200 text-gray-500"}`}>
-                      💳
+                    <span className={`p-2.5 rounded-2xl ${isVerified ? "bg-emerald-100 text-emerald-700" : "bg-gray-200 text-gray-500"}`}>
+                      <CreditCard size={20} />
                     </span>
                     {!isVerified ? (
                       <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 flex items-center gap-1">

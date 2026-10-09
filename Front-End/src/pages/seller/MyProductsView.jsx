@@ -478,7 +478,9 @@ export default function MyProductsView({ isVerified = true }) {
           </div>
         ) : (
           <div className="p-10 text-center">
-            <span className="text-4xl block mb-2">📦</span>
+            <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[#f5ece6] text-[#48154c] flex items-center justify-center">
+              <Package size={28} />
+            </div>
             <h3 className="font-bold text-[#48154c] text-base mb-1">No products listed yet</h3>
             <p className="text-xs text-[#7a6070] mb-4">Add your first homemade craft to start selling on GruhinEzz.</p>
             <button

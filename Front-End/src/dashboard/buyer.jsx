@@ -19,6 +19,9 @@ import {
   Settings,
   Save,
   RefreshCw,
+  Store,
+  Users,
+  LogOut,
 } from "lucide-react";
 import "./dashboard.css";
 
@@ -353,11 +356,11 @@ export default function BuyerDashboard() {
   if (!user) return null;
 
   const navItems = [
-    { icon: "🏠", label: "Marketplace" },
-    { icon: "🛍️", label: "My Orders" },
-    { icon: "❤️", label: "Saved Crafts" },
-    { icon: "👩‍🌾", label: "Support Artisans" },
-    { icon: "⚙️", label: "Settings" },
+    { icon: Store, label: "Marketplace" },
+    { icon: ShoppingBag, label: "My Orders" },
+    { icon: Heart, label: "Saved Crafts" },
+    { icon: Users, label: "Support Artisans" },
+    { icon: Settings, label: "Settings" },
   ];
 
   const searchSuggestions = products.slice(0, 3);
@@ -375,23 +378,28 @@ export default function BuyerDashboard() {
           </div>
         </div>
         <nav className="dashboard-nav">
-          {navItems.map((item, idx) => (
-            <a
-              key={idx}
-              href="#"
-              className={`dashboard-nav__item${activeNav === item.label ? " active" : ""}`}
-              onClick={(e) => {
-                e.preventDefault();
-                setActiveNav(item.label);
-                setMobileNavOpen(false);
-              }}
-            >
-              {item.icon} {item.label}
-            </a>
-          ))}
+          {navItems.map((item, idx) => {
+            const IconComp = item.icon;
+            return (
+              <a
+                key={idx}
+                href="#"
+                className={`dashboard-nav__item${activeNav === item.label ? " active" : ""}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActiveNav(item.label);
+                  setMobileNavOpen(false);
+                }}
+              >
+                <span className="flex items-center gap-2">
+                  <IconComp size={18} /> {item.label}
+                </span>
+              </a>
+            );
+          })}
         </nav>
-        <button className="dashboard-logout" onClick={handleLogout}>
-          🚪 Logout
+        <button className="dashboard-logout flex items-center justify-center gap-2" onClick={handleLogout}>
+          <LogOut size={16} /> Logout
         </button>
       </div>
 
@@ -540,38 +548,6 @@ export default function BuyerDashboard() {
                     <option value="price-high">Price: High to Low</option>
                     <option value="rating">Top Rated</option>
                   </select>
-                </div>
-              </div>
-            </div>
-
-            {/* E-Commerce Stats */}
-            <div className="dashboard-stats mb-8">
-              <div className="stat-card">
-                <span className="stat-card__icon">🛍️</span>
-                <div>
-                  <p className="stat-card__value">{products.length}</p>
-                  <p className="stat-card__label">Active Products</p>
-                </div>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__icon">👩‍🌾</span>
-                <div>
-                  <p className="stat-card__value">100%</p>
-                  <p className="stat-card__label">Women Artisans</p>
-                </div>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__icon">🔷</span>
-                <div>
-                  <p className="stat-card__value">Direct</p>
-                  <p className="stat-card__label">Artisan Payouts</p>
-                </div>
-              </div>
-              <div className="stat-card">
-                <span className="stat-card__icon">🚚</span>
-                <div>
-                  <p className="stat-card__value">PAN India</p>
-                  <p className="stat-card__label">Home Delivery</p>
                 </div>
               </div>
             </div>
@@ -1077,7 +1053,9 @@ export default function BuyerDashboard() {
               </div>
             ) : (
               <div className="bg-white rounded-3xl p-10 border border-[#e2d3c8] text-center shadow-xs">
-                <span className="text-4xl block mb-3">🛍️</span>
+                <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[#f5ece6] text-[#48154c] flex items-center justify-center">
+                  <ShoppingBag size={28} />
+                </div>
                 <h3 className="font-bold text-lg text-[#48154c] mb-1">
                   Your cart is empty
                 </h3>
