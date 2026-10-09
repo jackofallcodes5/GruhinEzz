@@ -11,7 +11,7 @@ const BASE_URL =
     : "https://sandbox.cashfree.com/pg";
 
 /**
- * Create Cashfree PG Order for Homemade Products E-Commerce Transaction.
+ * Create Cashfree dichk dichkin PG Order for Homemade Products E-Commerce Transaction.
  */
 async function createOrder({ userId, amount, customerName, customerEmail, customerPhone, productTitle }) {
   const orderId = `cf_ord_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
