@@ -59,6 +59,32 @@ The platform employs a rigid Role-Based Access Control (RBAC) system splitting u
 
 ---
 
+---
+
+## 📂 Master Repository File Structure
+
+```text
+GruhinEzz/
+├── Backend/                    # Node.js + Express backend
+│   ├── config/                 # DB connections and pool settings (db.js)
+│   ├── controllers/            # Core business logic (auth, admin, products)
+│   ├── middleware/             # Cloudinary upload storage, Auth tokens, RBAC
+│   ├── models/                 # Database queries and aggregations
+│   ├── routes/                 # Express API routes
+│   ├── sql/                    # Raw Supabase Postgres schema migrations
+│   └── server.js               # Entry point
+├── Front-End/                  # React + Vite frontend
+│   ├── src/
+│   │   ├── components/         # Reusable UI components (Product Cards, Cart)
+│   │   ├── dashboard/          # Multi-role portals (Admin, NGO, Seller, Buyer)
+│   │   ├── layouts/            # Navbar, Footer, and Base Layouts
+│   │   ├── pages/              # Static & Dynamic route pages
+│   │   └── services/           # Axios interceptors (apiClient.js)
+│   ├── .env                    # Vite Environment bindings
+│   └── package.json            
+└── README.md                   # Master Documentation
+```
+
 ## 🏗️ System Architecture & Tech Stack
 
 The platform is designed using a decoupled Client-Server architecture utilizing a modern stack:

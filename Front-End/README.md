@@ -1,201 +1,73 @@
-# GruhinEzz — Front-End
+# GruhinEzz — Frontend Application
 
-React + Vite (JavaScript) frontend for GruhinEzz, a marketplace connecting **Buyers**,
-**Sellers**, and **NGOs**. This repo contains the **frontend only** — it runs completely
-independently of any backend, using mock data/services, and is structured so a Node.js
-backend can be plugged in later with minimal changes.
+This directory contains the highly interactive, Role-Based React Frontend for the **GruhinEzz** platform. 
 
-## Screens included so far
+It acts as the visual face of our Women Empowerment & Community Impact E-Commerce platform, connecting Buyers, Sellers, NGOs, and Admins into one seamless, responsive web application.
 
-- **Sign Up** (`/signup`) — role tabs (Buyer / Seller / NGO), User Name, Email, Password, Contact No.
-- **Log In** (`/login`) — role tabs (Buyer / Seller / NGO), Email, Password.
+## 🛠️ Tech Stack & Libraries
+* **Framework:** React.js powered by Vite (for lightning-fast HMR and building).
+* **Routing:** `react-router-dom` for secure, multi-role dashboard navigation.
+* **Styling:** Tailwind CSS (utility-first, highly responsive) + custom CSS modules for complex Glassmorphism UI.
+* **Icons:** `lucide-react` for clean, consistent, customizable SVG icons.
+* **API Communication:** `axios` configured with interceptors to handle HTTP-Only JWT tokens and global error states.
+* **Payments UI:** Razorpay Checkout JS SDK for seamless modal-based transaction flows.
 
-All three roles share the same layout and components; only the active tab and the
-`role` value submitted to the API differ.
+## 🌟 Core Modules
 
-## Getting started
+### 1. Unified Authentication System
+* Responsive Login & Registration screens.
+* Role selection matrix (Buyer | Seller | NGO) seamlessly integrated into onboarding flows.
 
-```bash
-npm install
-cp .env.example .env   # adjust VITE_API_BASE_URL when the backend is ready
-npm run dev
-```
+### 2. Multi-Role Dashboards
+* **Buyer Dashboard:** Product discovery, persistent cart management, secure Razorpay checkout, and order history tracking.
+* **Seller Dashboard:** Digital storefront management (Products CRUD), KYC document submission, and one-click registration to NGO Empowerment Programs.
+* **NGO Dashboard:** Complex verification gatekeeping, creation/management of skill-development events, and dynamic impact statistical tracking.
+* **Admin Dashboard:** Centralized command center to verify/reject user profiles, and an inline custom modal to preview Cloudinary KYC documents without leaving the app.
 
-Build for production:
+## 📂 Frontend File Structure
 
-```bash
-npm run build
-npm run preview
-```
-
-## Project structure
-
-```
+```text
 Front-End/
-├── public/
 ├── src/
-│   ├── assets/
-│   │   └── logo.png          # GruhinEzz logo, used on Sign Up / Log In screens
-│   ├── components/
-│   │   ├── RoleTabs.jsx       # Buyer / Seller / NGO pill switcher
-│   │   ├── FormField.jsx      # Styled text/email/password input
-│   │   └── PrimaryButton.jsx  # Gradient "Continue" button
-│   ├── layouts/
-│   │   └── AuthLayout.jsx     # Shared two-column layout (logo + form) for auth screens
-│   ├── pages/
-│   │   ├── SignUpPage.jsx
-│   │   └── LoginPage.jsx
-│   ├── routes/
-│   │   └── AppRoutes.jsx      # App-wide route table
-│   ├── services/
-│   │   ├── apiClient.js       # Central Axios instance (base URL, auth header)
-│   │   └── authService.js     # signUp() / logIn() — API integration points
-│   ├── App.jsx
-│   ├── main.jsx
-│   └── index.css
-├── package.json
-├── vite.config.js
-└── README.md
+│   ├── assets/                 # Images, logos, SVGs
+│   ├── components/             # Reusable React UI (Cards, Modals, Spinners)
+│   ├── dashboard/              # 4 Distinct Portals (admin.jsx, buyer.jsx, ngo.jsx, seller.jsx)
+│   ├── layouts/                # Shared layout templates (Navbar/Footer wrappers)
+│   ├── pages/                  # Landing pages and standalone views
+│   ├── services/               # Centralized API logic (apiClient.js)
+│   ├── App.jsx                 # Global Router definitions
+│   └── main.jsx                # React DOM Mount point
+├── .env                        # Local Environment Vars
+├── package.json                
+└── vite.config.js              # Vite Builder Configurations
 ```
 
-## Backend integration
+## 🚀 Environment Setup
 
-The frontend never talks to a backend directly from components — every call goes
-through `src/services/`. Each service function currently returns **mock data** and is
-marked with:
-
-```js
-// TODO: Connect this function to the Node.js backend.
+Create a `.env` file in the root of `/Front-End` (this directory):
+```env
+# Point this to your backend server URL
+VITE_API_BASE_URL=http://localhost:5000/api
 ```
 
-To wire up the real backend once it exists:
+## 💻 Local Development
 
-1. Set `VITE_API_BASE_URL` in `.env` to the backend's base URL.
-2. In `src/services/authService.js`, set `USE_MOCK_API = false`.
-3. Remove the mock branches — the real `apiClient.post(...)` calls are already written
-   directly below each mock block, so no request/response shape changes are needed on
-   the frontend.
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the Vite development server:
+   ```bash
+   npm run dev
+   ```
+3. Open `http://localhost:5173` in your browser.
 
-`src/services/apiClient.js` already attaches a `Bearer` token (read from
-`localStorage.getItem("gruhinezz_token")`) to every outgoing request once the backend
-starts issuing one on login/signup.
+## 🌐 Production Deployment (Netlify)
 
-## API Reference (for the future Node.js backend)
-
-Base URL: `VITE_API_BASE_URL` (default used in development: `http://localhost:5000/api`)
-
-All request/response bodies are JSON. `role` is always one of: `"buyer"`, `"seller"`, `"ngo"`.
-
-### 1. Sign Up
-
-| | |
-|---|---|
-| **Endpoint** | `POST /auth/signup` |
-| **Purpose** | Register a new Buyer, Seller, or NGO account |
-| **Auth required** | No |
-
-**Request body**
-
-```json
-{
-  "role": "buyer",
-  "userName": "string, required",
-  "email": "string, required, valid email",
-  "password": "string, required, min 8 characters recommended",
-  "contactNo": "string, required"
-}
-```
-
-**Expected response — `201 Created`**
-
-```json
-{
-  "user": {
-    "id": "string",
-    "role": "buyer",
-    "userName": "string",
-    "email": "string",
-    "contactNo": "string"
-  },
-  "token": "string (JWT)"
-}
-```
-
-**Error response — `400 / 409`**
-
-```json
-{
-  "message": "Email already registered."
-}
-```
-
-Frontend behavior: on success, the user is redirected to `/login`.
-
----
-
-### 2. Log In
-
-| | |
-|---|---|
-| **Endpoint** | `POST /auth/login` |
-| **Purpose** | Authenticate an existing Buyer, Seller, or NGO account |
-| **Auth required** | No |
-
-**Request body**
-
-```json
-{
-  "role": "buyer",
-  "email": "string, required",
-  "password": "string, required"
-}
-```
-
-**Expected response — `200 OK`**
-
-```json
-{
-  "user": {
-    "id": "string",
-    "role": "buyer",
-    "userName": "string",
-    "email": "string"
-  },
-  "token": "string (JWT)"
-}
-```
-
-**Error response — `401`**
-
-```json
-{
-  "message": "Invalid email or password."
-}
-```
-
-Frontend behavior: on success, `token` is stored in `localStorage` under
-`gruhinezz_token` and attached as `Authorization: Bearer <token>` on subsequent
-requests. The user is then redirected to `/dashboard` (not yet designed — currently
-redirects back to `/login` as a placeholder).
-
----
-
-### Planned / not yet implemented
-
-These are anticipated next steps once more screens are provided — not built yet:
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `GET /auth/me` | GET | Fetch the current logged-in user from the token |
-| `POST /auth/logout` | POST | Invalidate the current session/token |
-| `POST /auth/forgot-password` | POST | Request a password reset |
-
-## Notes for the backend team
-
-- The frontend sends the same `role` field to both `/auth/signup` and `/auth/login` so
-  the backend can validate the user is logging into the correct account type (a Seller
-  account shouldn't be able to log in via the NGO tab, for example) — decide on that
-  validation rule on the backend.
-- Passwords are sent in plaintext over the request body (as normal) and must be hashed
-  server-side; the frontend does no hashing.
-- CORS must be enabled on the backend for the frontend's dev origin (`http://localhost:5173` by default) and whatever production origin is used.
+1. Connect your repository to Netlify.
+2. Select the **Base Directory** as `Front-End`.
+3. Set the **Build Command** to `npm run build`.
+4. Set the **Publish Directory** to `dist`.
+5. In Netlify's Environment Variables, set:
+   `VITE_API_BASE_URL` = `https://<YOUR-RENDER-BACKEND-URL>.onrender.com/api`
+6. Deploy!

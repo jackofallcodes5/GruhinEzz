@@ -1,96 +1,95 @@
-# GruhinEzz — Backend (Signup + Login only)
+# GruhinEzz — Backend API & Services
 
-Node.js + Express + MySQL backend implementing exactly the two endpoints the
-frontend's `authService.js` already expects — `POST /api/auth/signup` and
-`POST /api/auth/login` — plus a small `GET /api/auth/me` used to confirm the
-session on the dashboard after redirect. One table, `users`, stores everything.
+This directory contains the Node.js / Express backend infrastructure for **GruhinEzz**. It serves as the secure, high-performance brain of the platform, bridging the PostgreSQL database, cloud storage, payment gateways, and the client applications.
 
-## 1. Install
+## 🛠️ Backend Tech Stack
+* **Runtime:** Node.js
+* **Framework:** Express.js (Modular REST API routing)
+* **Database:** PostgreSQL (hosted on Supabase) via standard `pg` connection pools.
+* **Authentication:** JSON Web Tokens (JWT) distributed via secure, HTTP-only cookies (`cookie-parser`).
+* **Media / File Uploads:** `multer` combined with `multer-storage-cloudinary` to aggressively stream files to Cloudinary buckets, bypassing local disk usage.
+* **Payments:** Razorpay official Node SDK for order creation and SHA256 signature verification.
+* **Email Services:** `nodemailer` for SMTP transaction emails (Welcome, Verification statuses).
 
-```bash
-cd gruhinezz-backend
-npm install
+## 🔒 Security Architecture
+* **Role-Based Access Control (RBAC):** Custom `authorizeRoles()` middleware strictly prevents users from accessing cross-role endpoints (e.g., stopping a Seller from hitting Admin verification routes).
+* **Strict File Constraints:** 
+  * KYC / Legal Documents are capped at **75KB**.
+  * Product / Store Images are capped at **2MB**.
+  * Handled dynamically to prevent DDoS via bandwidth exhaustion.
+* **CORS Restrictions:** Configured to dynamically accept whitelisted origins via the `.env` file.
+
+## 📂 Core API Structure
+* `/api/auth` - Register, Login, Session Check (`/me`), Logout.
+* `/api/admin` - Verification queues for Sellers & NGOs, user management.
+* `/api/upload` - Secure Cloudinary streaming endpoints for Products and Documents.
+* `/api/products` & `/api/reviews` - Marketplace inventory and dynamic 1-5 star rating aggregation.
+* `/api/payment` - Razorpay logic (Order generation, cryptographic verification, DB ledger updates).
+* `/api/empowerment` - NGO event creation, fetching NGO stats, and Seller event registration workflows.
+
+## 📂 Backend File Structure
+
+```text
+Backend/
+├── config/                     # Database setup and connection pools (db.js)
+├── controllers/                # Core logic for processing req/res payloads
+├── middleware/                 # RBAC authorizeRoles, Multer Cloudinary storage
+├── models/                     # Raw SQL abstraction models
+├── routes/                     # Definition of all Express.js endpoints
+├── sql/                        # Table definitions (Run in Supabase Editor)
+├── .env                        # Master secrets and API keys
+├── server.js                   # Application entry point
+└── package.json                
 ```
 
-## 2. Set up MySQL
+## 🚀 Environment Setup
 
-```bash
-mysql -u root -p < sql/schema.sql
+Create a `.env` file in the root of `/Backend` (this directory):
+```env
+PORT=5000
+# Comma-separated list of allowed frontend origins (No trailing slashes!)
+CLIENT_ORIGINS=http://localhost:5173
+
+# PostgreSQL Supabase Connection
+DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres
+
+# Security
+JWT_SECRET=super_secret_jwt_key_here
+
+# Nodemailer / SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+
+# Razorpay Keys
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
-This creates the `gruhinezz` database and the single `users` table:
+## 💻 Local Development
 
-| column        | type                              |
-|---------------|------------------------------------|
-| id            | INT, primary key, auto increment   |
-| role          | ENUM('buyer','seller','ngo')       |
-| user_name     | VARCHAR(100)                       |
-| email         | VARCHAR(255), unique                |
-| password_hash | VARCHAR(255) (bcrypt hash)          |
-| contact_no    | VARCHAR(20)                        |
-| created_at    | TIMESTAMP                          |
-| updated_at    | TIMESTAMP                          |
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the development server (uses `nodemon` for auto-restarts):
+   ```bash
+   npm run dev
+   ```
+3. Ensure your `.env` variables are correctly set and the Supabase database is reachable.
 
-## 3. Configure environment
+## 🌐 Production Deployment (Render)
 
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your MySQL password and a random `JWT_SECRET`.
-
-## 4. Run
-
-```bash
-npm run dev     # nodemon, auto-restart
-# or
-npm start
-```
-
-Server starts on `http://localhost:5000` (matches `VITE_API_BASE_URL` default
-in the frontend's `.env.example`).
-
-## Endpoints
-
-### `POST /api/auth/signup`
-Body: `{ role, userName, email, password, contactNo }`
-→ `201` `{ user: { id, role, userName, email, contactNo }, token }`
-→ `409` if email already registered.
-
-### `POST /api/auth/login`
-Body: `{ role, email, password }`
-→ `200` `{ user: { id, role, userName, email }, token }`
-→ `401` if credentials wrong OR if the email exists but under a different role
-(e.g. a Seller account trying to log in via the NGO tab — role is checked
-against the stored account as the frontend README requested).
-
-### `GET /api/auth/me`
-Header: `Authorization: Bearer <token>`
-→ `200` `{ user: { id, role, userName, email, contactNo } }`
-
-Call this from the dashboard page right after redirect to confirm the token
-is valid and to get the user's name/role to display, instead of trusting
-whatever was last stored client-side.
-
-## How this plugs into the frontend
-
-No frontend changes needed beyond what the README already documents:
-
-1. Set `VITE_API_BASE_URL=http://localhost:5000/api` in the frontend's `.env`.
-2. In `src/services/authService.js`, set `USE_MOCK_API = false`.
-3. The real `apiClient.post(...)` calls already written below the mock
-   blocks match this backend's request/response shapes exactly, so no
-   further edits are needed there.
-4. On successful login, redirect to `/dashboard` and let the role-specific
-   dashboard (`buyer.jsx` / `seller.jsx` / `ngo.jsx`) call `GET /api/auth/me`
-   on mount using the stored `gruhinezz_token` to fetch the current user.
-
-## Notes
-
-- Passwords are hashed with bcrypt (10 salt rounds) before storage; the
-  frontend sends plaintext over HTTPS as the README describes, hashing only
-  happens here.
-- CORS is restricted to the origins listed in `CLIENT_ORIGINS` in `.env`
-  (defaults to the Vite dev server at `http://localhost:5173`).
-- This is intentionally scoped to signup/login only, per your other backend
-  work — no other tables or routes are included.
+1. Create a Web Service on [Render](https://render.com/).
+2. Set the **Root Directory** to `Backend`.
+3. **Build Command**: `npm install`
+4. **Start Command**: `node server.js`
+5. Map all the `.env` variables into Render's Environment Variables dashboard.
+   - *Crucial:* Set `CLIENT_ORIGINS` exactly to your Netlify URL (e.g., `https://gruhinezz.netlify.app`).
+   - The backend uses `{ ssl: { rejectUnauthorized: false } }` natively, so it connects securely to Supabase.
