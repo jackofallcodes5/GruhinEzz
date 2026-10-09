@@ -1,69 +1,67 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 5000,
-  greetingTimeout: 5000,
-  socketTimeout: 10000,
-});
+// Initialize Resend API Client
+const resendApiKey = process.env.RESEND_API_KEY;
+const resendClient = resendApiKey ? new Resend(resendApiKey) : null;
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.error("❌ SMTP VERIFY ERROR:", error);
-  } else {
-    console.log("✅ SMTP connection is ready");
-  }
-});
+if (resendClient) {
+  console.log("✅ Resend Email Service is ready");
+} else {
+  console.warn("⚠️ RESEND_API_KEY is missing in environment variables. Emails will not be sent.");
+}
 
 async function sendOtpEmail(to, otp, userName = "there") {
-  const mailOptions = {
-    from: `"GruhinEzz" <${process.env.EMAIL_USER}>`,
-    to,
-    subject: "Your GruhinEzz Verification Code",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-        <h2>Hello ${userName}!</h2>
-
-        <p>Your GruhinEzz verification code is:</p>
-
-        <div style="
-          text-align:center;
-          margin:28px 0;
-          background:#f5ece6;
-          border:2px solid #48154c;
-          border-radius:16px;
-          padding:20px;
+  const subject = "Your GruhinEzz Verification Code";
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+      <h2>Hello ${userName}!</h2>
+      <p>Your GruhinEzz verification code is:</p>
+      <div style="
+        text-align:center;
+        margin:28px 0;
+        background:#f5ece6;
+        border:2px solid #48154c;
+        border-radius:16px;
+        padding:20px;
+      ">
+        <span style="
+          font-size:38px;
+          font-weight:700;
+          letter-spacing:12px;
+          color:#48154c;
         ">
-          <span style="
-            font-size:38px;
-            font-weight:700;
-            letter-spacing:12px;
-            color:#48154c;
-          ">
-            ${otp}
-          </span>
-        </div>
-
-        <p>
-          If you didn't request this, you can safely ignore this email.
-        </p>
+          ${otp}
+        </span>
       </div>
-    `,
-  };
+      <p>If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  `;
+
+  if (!resendClient) {
+    console.warn(`⚠️ Cannot send email: RESEND_API_KEY is not set. OTP generated for ${to}: ${otp}`);
+    return null;
+  }
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("✅ OTP email sent:", info.messageId);
-    return info;
-  } catch (error) {
-    console.error("❌ Email send failed:", error);
-    throw error;
+    let resendFrom = process.env.RESEND_FROM || process.env.EMAIL_FROM;
+    // Resend free tier requires sending from onboarding@resend.dev unless custom domain is verified
+    if (!resendFrom || resendFrom.includes("gmail.com")) {
+      resendFrom = "GruhinEzz <onboarding@resend.dev>";
+    }
+    const formattedFrom = resendFrom.includes("<") ? resendFrom : `GruhinEzz <${resendFrom}>`;
+
+    const data = await resendClient.emails.send({
+      from: formattedFrom,
+      to: [to],
+      subject,
+      html: htmlContent,
+    });
+
+    console.log("✅ OTP email sent via Resend HTTP API:", data);
+    return data;
+  } catch (resendErr) {
+    console.error("❌ Resend email failed:", resendErr.message);
+    throw resendErr;
   }
 }
 
