@@ -134,32 +134,26 @@ async function checkSession(req, res) {
 }
 
 // POST /api/auth/logout
-async function logout(req, res) {
+function logout(req, res) {
   res.clearCookie("gruhinezz_session");
+  res.clearCookie("gruhinezz_token");
   return res.status(200).json({ message: "Logged out successfully." });
 }
 
 // GET /api/auth/me
-async function me(req, res) {
-  try {
-    const user = await userModel.findById(req.userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-    return res.status(200).json({
-      user: {
-        id: String(user.id),
-        role: user.role,
-        userName: user.user_name,
-        email: user.email,
-        contactNo: user.contact_no,
-        isVerified: Boolean(user.is_verified),
-      },
-    });
-  } catch (err) {
-    console.error("me error:", err);
-    return res.status(500).json({ message: "Something went wrong. Please try again." });
-  }
+// req.user is already validated and attached by requireAuth middleware
+function me(req, res) {
+  // requireAuth already looked up the user in DB and attached req.user
+  return res.status(200).json({
+    user: {
+      id: String(req.user.id),
+      role: req.user.role,
+      userName: req.user.userName,
+      email: req.user.email,
+      contactNo: req.user.contactNo,
+      isVerified: Boolean(req.user.isVerified),
+    },
+  });
 }
 
 module.exports = { signup, login, checkSession, logout, me };

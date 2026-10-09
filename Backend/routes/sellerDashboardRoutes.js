@@ -5,24 +5,29 @@ const {
   getEarnings, withdraw,
   getSettings, saveSettings,
 } = require("../controllers/sellerDashboardController");
+const { requireAuth, requireRole } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// All seller routes require a valid token AND the "seller" role
+router.use(requireAuth, requireRole("seller"));
+
 // Products
-router.get("/products",                 getProducts);
-router.post("/products",                saveProduct);
-router.delete("/products/:productId",   removeProduct);
+router.get("/products",               getProducts);
+router.post("/products",              saveProduct);
+router.delete("/products/:productId", removeProduct);
 
 // Orders
-router.get("/orders",                   getOrders);
-router.patch("/orders/status",          updateOrderStatus);
+router.get("/orders",                 getOrders);
+router.patch("/orders/status",        updateOrderStatus);
 
 // Earnings & Transactions
-router.get("/earnings",                 getEarnings);
-router.post("/earnings/withdraw",       withdraw);
+router.get("/earnings",               getEarnings);
+router.post("/earnings/withdraw",     withdraw);
 
 // Settings (shipping rules + notifications)
-router.get("/settings",                 getSettings);
-router.post("/settings",                saveSettings);
+router.get("/settings",               getSettings);
+router.post("/settings",              saveSettings);
 
 module.exports = router;
+

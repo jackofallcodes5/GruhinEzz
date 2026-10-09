@@ -1,6 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { PRODUCTS } from "../../data/productsData";
 import apiClient from "../../services/apiClient";
 import {
   Package,
@@ -14,19 +13,13 @@ import {
   Upload,
   CheckCircle2,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 export default function MyProductsView({ isVerified = true }) {
-
-  // Initial products belonging to this seller (e.g., Sunita Sharma)
-  const [productsList, setProductsList] = useState(() => {
-    // Return sample seller products
-    return PRODUCTS.map((p, idx) => ({
-      ...p,
-      status: idx === 3 ? "Out of Stock" : "Active",
-      salesCount: 45 + idx * 12,
-    }));
-  });
+  const [productsList, setProductsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -55,6 +48,28 @@ export default function MyProductsView({ isVerified = true }) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFileMeta, setUploadedFileMeta] = useState(null);
 
+  const fetchSellerProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.get("/seller/products");
+      if (res.data?.success) {
+        setProductsList(res.data.products || []);
+      } else {
+        setError(res.data?.message || "Failed to load your products.");
+      }
+    } catch (err) {
+      console.error("Error fetching seller products:", err);
+      setError("Failed to load seller products from database.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSellerProducts();
+  }, [fetchSellerProducts]);
+
   const handleFileUpload = async (file) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -65,7 +80,6 @@ export default function MyProductsView({ isVerified = true }) {
     setUploadError(null);
     setUploadingImage(true);
 
-    // Immediate local preview so UI updates instantly
     const localPreviewUrl = URL.createObjectURL(file);
     setFormData((prev) => ({ ...prev, imageUrl: localPreviewUrl }));
     setUploadedFileMeta({
@@ -94,7 +108,6 @@ export default function MyProductsView({ isVerified = true }) {
       }
     } catch (err) {
       console.warn("Backend Multer notice (fallback preview retained):", err.message);
-      // Retain localPreviewUrl for seamless seller experience
     } finally {
       setUploadingImage(false);
     }
@@ -113,17 +126,17 @@ export default function MyProductsView({ isVerified = true }) {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Filtered products
   const filteredProducts = productsList.filter((p) => {
+    const title = p.title || p.name || "";
+    const category = p.category || "";
     const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase());
+      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      category.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCat =
-      selectedCategory === "All" || p.category === selectedCategory;
+      selectedCategory === "All" || category === selectedCategory;
     return matchesSearch && matchesCat;
   });
 
-  // Open add modal
   const handleOpenAdd = () => {
     if (!isVerified) {
       alert("🔒 Feature Locked: Product uploads require Admin verification.");
@@ -142,23 +155,21 @@ export default function MyProductsView({ isVerified = true }) {
     setIsAddModalOpen(true);
   };
 
-  // Open edit modal
   const handleOpenEdit = (p) => {
     setEditingProduct(p);
     setFormData({
-      name: p.name,
-      category: p.category,
-      price: p.price,
-      originalPrice: p.originalPrice || p.price,
-      stock: p.stock,
-      description: typeof p.description === "object" ? p.description.overview : p.description,
-      imageUrl: Array.isArray(p.images) ? p.images[0] : p.image || "",
+      name: p.title || p.name || "",
+      category: p.category || "Homemade Foods",
+      price: p.price || "",
+      originalPrice: p.original_price || p.originalPrice || p.price || "",
+      stock: p.stock || "10",
+      description: typeof p.description === "object" ? (p.description.overview || "") : (p.description || ""),
+      imageUrl: p.image_url || (Array.isArray(p.images) ? p.images[0] : p.image) || "",
     });
     setIsAddModalOpen(true);
   };
 
-  // Save product (Add or Edit)
-  const handleSaveProduct = (e) => {
+  const handleSaveProduct = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.price) return;
 
@@ -166,98 +177,70 @@ export default function MyProductsView({ isVerified = true }) {
       formData.imageUrl.trim() ||
       "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80";
 
-    if (editingProduct) {
-      // Update existing
-      setProductsList((prev) =>
-        prev.map((item) =>
-          item.id === editingProduct.id
-            ? {
-                ...item,
-                name: formData.name,
-                category: formData.category,
-                price: Number(formData.price),
-                originalPrice: Number(formData.originalPrice) || Number(formData.price),
-                stock: Number(formData.stock),
-                images: [img],
-                description: {
-                  ...item.description,
-                  overview: formData.description,
-                },
-              }
-            : item
-        )
-      );
-      showToast(`Updated "${formData.name}" successfully!`);
-    } else {
-      // Add new
-      const newProduct = {
-        id: Date.now(),
-        name: formData.name,
-        category: formData.category,
-        price: Number(formData.price),
-        originalPrice: Number(formData.originalPrice) || Number(formData.price),
-        discount: "20% OFF",
-        stock: Number(formData.stock),
-        images: [img],
-        rating: 5.0,
-        reviewCount: 1,
-        salesCount: 0,
-        status: "Active",
-        seller: {
-          name: "Sunita Sharma",
-          location: "Jaipur, Rajasthan",
-          verified: true,
-        },
-        description: {
-          overview: formData.description || "Authentic homemade craft by household woman artisan.",
-          features: ["Handcrafted in small batches", "Pure, authentic quality"],
-          benefits: ["Direct support to woman artisan"],
-          usage: "Use as recommended.",
-          artisanStory: "Handmade with love.",
-        },
-        specifications: {
-          "Brand": "Sunita's Rasoi",
-          "Country of Origin": "India",
-        },
-        variants: [],
-        reviews: [],
-        deliveryInformation: {
-          estimatedDays: "3 - 5 business days",
-          shippingFee: "Free Shipping",
-          returnPolicy: "7-Day Replacement",
-        },
-      };
+    const payload = {
+      id: editingProduct ? editingProduct.id : undefined,
+      title: formData.name,
+      category: formData.category,
+      price: Number(formData.price),
+      originalPrice: Number(formData.originalPrice) || Number(formData.price),
+      stock: Number(formData.stock),
+      imageUrl: img,
+      description: formData.description || "Authentic handmade craft by household woman artisan.",
+    };
 
-      setProductsList((prev) => [newProduct, ...prev]);
-      showToast(`Added "${formData.name}" to your craft listings!`);
+    try {
+      const res = await apiClient.post("/seller/products", payload);
+      if (res.data?.success) {
+        showToast(editingProduct ? `Updated "${formData.name}" successfully!` : `Added "${formData.name}"!`);
+        fetchSellerProducts();
+      } else {
+        alert("Failed to save product: " + (res.data?.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("Error saving product:", err);
+      alert("Error saving product to server.");
     }
 
     setIsAddModalOpen(false);
   };
 
-  // Delete product
-  const handleDeleteProduct = (id) => {
-    setProductsList((prev) => prev.filter((p) => p.id !== id));
-    setDeleteConfirmId(null);
-    showToast("Product deleted successfully.");
+  const handleDeleteProduct = async (id) => {
+    try {
+      const res = await apiClient.delete(`/seller/products/${id}`);
+      if (res.data?.success) {
+        showToast("Product deleted successfully.");
+        setProductsList((prev) => prev.filter((p) => p.id !== id));
+      } else {
+        alert("Failed to delete product");
+      }
+    } catch (err) {
+      console.error("Error deleting product:", err);
+      alert("Error deleting product.");
+    } finally {
+      setDeleteConfirmId(null);
+    }
   };
 
-  // Toggle status
-  const handleToggleStatus = (id) => {
-    setProductsList((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          const next = p.status === "Active" ? "Paused" : "Active";
-          return { ...p, status: next };
-        }
-        return p;
-      })
-    );
+  const handleToggleStatus = async (p) => {
+    const nextActive = p.is_active !== false ? false : true;
+    try {
+      const res = await apiClient.post("/seller/products", {
+        id: p.id,
+        title: p.title || p.name,
+        price: p.price,
+        category: p.category,
+        isActive: nextActive,
+      });
+      if (res.data?.success) {
+        fetchSellerProducts();
+      }
+    } catch (err) {
+      console.error("Error toggling product status:", err);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Toast */}
       {toastMessage && (
         <div className="p-3 bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-medium flex items-center justify-between shadow-md">
           <span>✓ {toastMessage}</span>
@@ -277,13 +260,22 @@ export default function MyProductsView({ isVerified = true }) {
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="px-4 py-2.5 bg-gradient-to-r from-[#48154c] to-[#ae3a65] text-white rounded-xl text-xs font-bold hover:opacity-95 transition-opacity flex items-center gap-2 shadow-sm"
-        >
-          <Plus size={16} />
-          <span>Add New Craft</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchSellerProducts}
+            className="p-2.5 bg-[#f5ece6] hover:bg-[#e2d3c8] text-[#48154c] rounded-xl transition-colors"
+            title="Refresh list"
+          >
+            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2.5 bg-gradient-to-r from-[#48154c] to-[#ae3a65] text-white rounded-xl text-xs font-bold hover:opacity-95 transition-opacity flex items-center gap-2 shadow-sm"
+          >
+            <Plus size={16} />
+            <span>Add New Craft</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -300,16 +292,16 @@ export default function MyProductsView({ isVerified = true }) {
             Active Online
           </p>
           <p className="text-2xl font-bold text-emerald-700 mt-1">
-            {productsList.filter((p) => p.status === "Active").length}
+            {productsList.filter((p) => p.is_active !== false).length}
           </p>
         </div>
 
         <div className="bg-white rounded-2xl p-4 border border-[#e2d3c8] shadow-2xs">
           <p className="text-[11px] font-semibold text-[#7a6070] uppercase tracking-wider">
-            Total Sold Units
+            Total Reviews
           </p>
           <p className="text-2xl font-bold text-[#ae3a65] mt-1">
-            {productsList.reduce((acc, p) => acc + (p.salesCount || 0), 0)}
+            {productsList.reduce((acc, p) => acc + (parseInt(p.review_count || 0, 10)), 0)}
           </p>
         </div>
 
@@ -318,7 +310,7 @@ export default function MyProductsView({ isVerified = true }) {
             Low Stock Alerts
           </p>
           <p className="text-2xl font-bold text-amber-700 mt-1">
-            {productsList.filter((p) => p.stock < 10).length}
+            {productsList.filter((p) => (p.stock || 0) < 10).length}
           </p>
         </div>
       </div>
@@ -358,130 +350,148 @@ export default function MyProductsView({ isVerified = true }) {
 
       {/* Products Table */}
       <div className="bg-white rounded-3xl border border-[#e2d3c8] overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-[#2d2130]">
-            <thead className="bg-[#f5ece6] text-[#48154c] uppercase font-bold text-[10px] tracking-wider border-b border-[#e2d3c8]">
-              <tr>
-                <th className="py-3.5 px-4">Craft / Product</th>
-                <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4">Price</th>
-                <th className="py-3.5 px-4">Stock</th>
-                <th className="py-3.5 px-4">Sales</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#f5ece6]">
-              {filteredProducts.map((p) => {
-                const img = Array.isArray(p.images) ? p.images[0] : p.image;
-                return (
-                  <tr key={p.id} className="hover:bg-[#fcf9f7] transition-colors">
-                    {/* Product Name & Thumb */}
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={img}
-                          alt={p.name}
-                          className="w-12 h-12 rounded-xl object-cover border border-[#e2d3c8] bg-[#f5ece6]"
-                        />
-                        <div className="min-w-0 max-w-[200px] sm:max-w-xs">
+        {loading ? (
+          <div className="p-12 text-center text-xs font-semibold text-[#48154c]">
+            <Loader2 size={28} className="animate-spin mx-auto mb-2" />
+            Loading seller crafts...
+          </div>
+        ) : error ? (
+          <div className="p-8 text-center text-xs font-semibold text-red-600">
+            ⚠️ {error}
+          </div>
+        ) : filteredProducts.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-[#2d2130]">
+              <thead className="bg-[#f5ece6] text-[#48154c] uppercase font-bold text-[10px] tracking-wider border-b border-[#e2d3c8]">
+                <tr>
+                  <th className="py-3.5 px-4">Craft / Product</th>
+                  <th className="py-3.5 px-4">Category</th>
+                  <th className="py-3.5 px-4">Price</th>
+                  <th className="py-3.5 px-4">Stock</th>
+                  <th className="py-3.5 px-4">Rating</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#f5ece6]">
+                {filteredProducts.map((p) => {
+                  const title = p.title || p.name;
+                  const img = p.image_url || (Array.isArray(p.images) ? p.images[0] : p.image);
+                  const isActive = p.is_active !== false;
+                  return (
+                    <tr key={p.id} className="hover:bg-[#fcf9f7] transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={img}
+                            alt={title}
+                            className="w-12 h-12 rounded-xl object-cover border border-[#e2d3c8] bg-[#f5ece6]"
+                          />
+                          <div className="min-w-0 max-w-[200px] sm:max-w-xs">
+                            <Link
+                              to={`/product/${p.id}`}
+                              className="font-bold text-[#2d2130] hover:text-[#48154c] line-clamp-1 block transition-colors"
+                            >
+                              {title}
+                            </Link>
+                            <span className="text-[10px] text-[#7a6070]">ID: #{p.id}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-4 font-medium text-[#7a6070]">
+                        {p.category}
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <span className="font-bold text-[#48154c]">₹{p.price}</span>
+                        {p.original_price > p.price && (
+                          <span className="text-[10px] text-[#7a6070] line-through ml-1">
+                            ₹{p.original_price}
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <span
+                          className={`font-semibold px-2 py-0.5 rounded-md ${
+                            (p.stock || 0) < 5
+                              ? "bg-red-100 text-red-800"
+                              : (p.stock || 0) < 15
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {p.stock || 0} units
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 font-semibold text-[#5a4855]">
+                        ★ {p.rating || "0.0"} ({p.review_count || 0})
+                      </td>
+
+                      <td className="py-3 px-4">
+                        <button
+                          onClick={() => handleToggleStatus(p)}
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
+                            isActive
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200"
+                              : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
+                          }`}
+                        >
+                          {isActive ? "Active ✓" : "Paused ⏸"}
+                        </button>
+                      </td>
+
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <Link
                             to={`/product/${p.id}`}
-                            className="font-bold text-[#2d2130] hover:text-[#48154c] line-clamp-1 block transition-colors"
+                            title="View on Live Product Page"
+                            className="p-1.5 text-[#48154c] hover:bg-[#f5ece6] rounded-lg transition-colors"
                           >
-                            {p.name}
+                            <Eye size={15} />
                           </Link>
-                          <span className="text-[10px] text-[#7a6070]">ID: #{p.id}</span>
+
+                          <button
+                            onClick={() => handleOpenEdit(p)}
+                            title="Edit Details"
+                            className="p-1.5 text-[#ae3a65] hover:bg-[#f5ece6] rounded-lg transition-colors"
+                          >
+                            <Edit2 size={15} />
+                          </button>
+
+                          <button
+                            onClick={() => setDeleteConfirmId(p.id)}
+                            title="Delete Product"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
-                      </div>
-                    </td>
-
-                    {/* Category */}
-                    <td className="py-3 px-4 font-medium text-[#7a6070]">
-                      {p.category}
-                    </td>
-
-                    {/* Price */}
-                    <td className="py-3 px-4">
-                      <span className="font-bold text-[#48154c]">₹{p.price}</span>
-                      {p.originalPrice > p.price && (
-                        <span className="text-[10px] text-[#7a6070] line-through ml-1">
-                          ₹{p.originalPrice}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Stock */}
-                    <td className="py-3 px-4">
-                      <span
-                        className={`font-semibold px-2 py-0.5 rounded-md ${
-                          p.stock < 5
-                            ? "bg-red-100 text-red-800"
-                            : p.stock < 15
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-emerald-100 text-emerald-800"
-                        }`}
-                      >
-                        {p.stock} units
-                      </span>
-                    </td>
-
-                    {/* Sales */}
-                    <td className="py-3 px-4 font-semibold text-[#5a4855]">
-                      {p.salesCount || 0} orders
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3 px-4">
-                      <button
-                        onClick={() => handleToggleStatus(p.id)}
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
-                          p.status === "Active"
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200"
-                            : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
-                        }`}
-                      >
-                        {p.status === "Active" ? "Active ✓" : "Paused ⏸"}
-                      </button>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Link
-                          to={`/product/${p.id}`}
-                          title="View on Live Product Page"
-                          className="p-1.5 text-[#48154c] hover:bg-[#f5ece6] rounded-lg transition-colors"
-                        >
-                          <Eye size={15} />
-                        </Link>
-
-                        <button
-                          onClick={() => handleOpenEdit(p)}
-                          title="Edit Details"
-                          className="p-1.5 text-[#ae3a65] hover:bg-[#f5ece6] rounded-lg transition-colors"
-                        >
-                          <Edit2 size={15} />
-                        </button>
-
-                        <button
-                          onClick={() => setDeleteConfirmId(p.id)}
-                          title="Delete Product"
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-10 text-center">
+            <span className="text-4xl block mb-2">📦</span>
+            <h3 className="font-bold text-[#48154c] text-base mb-1">No products listed yet</h3>
+            <p className="text-xs text-[#7a6070] mb-4">Add your first homemade craft to start selling on GruhinEzz.</p>
+            <button
+              onClick={handleOpenAdd}
+              className="px-4 py-2 bg-[#48154c] text-white rounded-xl text-xs font-bold"
+            >
+              + Add First Craft
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ── Add / Edit Product Modal ── */}
+      {/* Add / Edit Product Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#e2d3c8] max-h-[90vh] overflow-y-auto">
@@ -580,7 +590,6 @@ export default function MyProductsView({ isVerified = true }) {
                   Craft Image Upload (Multer) *
                 </label>
 
-                {/* Hidden File Input */}
                 <input
                   ref={fileInputRef}
                   type="file"

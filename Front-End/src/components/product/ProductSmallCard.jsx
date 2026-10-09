@@ -27,15 +27,18 @@ export default function ProductSmallCard({ product, onClick, className = "" }) {
     }
   };
 
+  const productName = product.title || product.name || "Handcrafted Item";
+
   const sellerName =
-    typeof product.seller === "object"
+    product.artisan_name ||
+    (typeof product.seller === "object"
       ? product.seller?.name || "Artisan"
-      : product.seller || "Artisan";
+      : product.seller || "Artisan");
 
   const mainImage =
     Array.isArray(product.images) && product.images.length > 0
       ? product.images[0]
-      : product.image || "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop&q=60";
+      : product.image_url || product.image || "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop&q=60";
 
   return (
     <div
@@ -54,7 +57,7 @@ export default function ProductSmallCard({ product, onClick, className = "" }) {
       <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-xl overflow-hidden bg-[#f5ece6] relative">
         <img
           src={mainImage}
-          alt={product.name}
+          alt={productName}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           loading="lazy"
         />
@@ -64,7 +67,7 @@ export default function ProductSmallCard({ product, onClick, className = "" }) {
       <div className="flex-1 min-w-0 flex flex-col justify-center">
         {/* Product Name — Large and Bold */}
         <h4 className="text-sm sm:text-base font-bold text-[#2d2130] group-hover:text-[#48154c] transition-colors line-clamp-1 leading-snug">
-          {product.name}
+          {productName}
         </h4>
 
         {/* Seller Name — Lower visual priority */}

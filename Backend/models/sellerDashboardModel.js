@@ -1,4 +1,5 @@
 const { pool } = require("../config/db");
+const { generateKeywords } = require("../utils/keywords");
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 
@@ -18,8 +19,10 @@ async function getProductsBySeller(sellerId) {
 async function upsertProduct(sellerId, data) {
   const {
     id, title, description, price, originalPrice, discountPct,
-    category, imageUrl, stock, artisanName, isActive,
+    category, subcategory, imageUrl, stock, artisanName, isActive,
   } = data;
+
+  const keywords = generateKeywords({ title, description, category, subcategory, artisanName });
 
   if (id) {
     const { rows } = await pool.query(
@@ -30,27 +33,29 @@ async function upsertProduct(sellerId, data) {
          original_price = $4,
          discount_pct   = $5,
          category       = $6,
-         image_url      = $7,
-         stock          = $8,
-         artisan_name   = $9,
-         is_active      = $10,
+         subcategory    = $7,
+         image_url      = $8,
+         stock          = $9,
+         artisan_name   = $10,
+         is_active      = $11,
+         keywords       = $12,
          updated_at     = NOW()
-       WHERE id = $11 AND seller_id = $12
+       WHERE id = $13 AND seller_id = $14
        RETURNING *`,
       [title, description, price, originalPrice || null, discountPct || 0,
-       category, imageUrl || null, stock || 10, artisanName || null,
-       isActive !== false, id, sellerId]
+       category, subcategory || null, imageUrl || null, stock || 10, artisanName || null,
+       isActive !== false, keywords, id, sellerId]
     );
     return rows[0];
   } else {
     const { rows } = await pool.query(
       `INSERT INTO products
          (seller_id, title, description, price, original_price, discount_pct,
-          category, image_url, stock, artisan_name, is_active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+          category, subcategory, image_url, stock, artisan_name, is_active, keywords)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [sellerId, title, description, price, originalPrice || null, discountPct || 0,
-       category, imageUrl || null, stock || 10, artisanName || null, isActive !== false]
+       category, subcategory || null, imageUrl || null, stock || 10, artisanName || null, isActive !== false, keywords]
     );
     return rows[0];
   }

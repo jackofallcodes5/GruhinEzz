@@ -1,10 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import {
-  getProductById,
-  getRelatedProducts,
-  getRecommendedProducts,
-} from "../data/productsData";
 import ProductSmallCard from "../components/product/ProductSmallCard";
 import logoImg from "../assets/logo.png";
 import apiClient from "../services/apiClient";
@@ -29,46 +24,31 @@ import {
   Tag,
   UserCheck,
   MessageSquarePlus,
+  Loader2,
 } from "lucide-react";
 
-/**
- * ProductPage
- * 
- * View 3 of 3: Complete product detail experience.
- * 
- * Sections:
- * A. Product Image Section (Main, thumbnails, zoom/lightbox)
- * B. Product Information (Name, Seller, Brand, Category, Rating, Reviews, Price, MRP, Discount, Offers, Stock)
- * C. Product Description (Overview, Features, Benefits, Usage, Artisan Story)
- * D. Product Specifications (Category-specific table of existing specs)
- * E. Variants Selector (Interactive variant options)
- * F. Quantity Selector ([-] 1 [+] constrained to stock)
- * G. Actions ([Add to Cart], [Buy Now], [Wishlist])
- * H. Delivery / Availability (Estimator, shipping, return, seller card)
- * I. Reviews & Ratings (Aggregate, breakdown bars, reviews list, submit review form)
- * J. Related / Recommended Products (STRICTLY rendered using ProductSmallCard)
- */
 export default function ProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const product = useMemo(() => getProductById(id), [id]);
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Reviews state from DB API
+  const [reviews, setReviews] = useState([]);
+  const [reviewStats, setReviewStats] = useState({ avg_rating: 0, review_count: 0 });
+
+  // Related and recommended products from API
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
 
   // Gallery State
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Variant & Quantity State
-  const [selectedVariants, setSelectedVariants] = useState(() => {
-    if (!product?.variants) return {};
-    const initial = {};
-    product.variants.forEach((v) => {
-      if (v.options && v.options.length > 0) {
-        initial[v.name] = v.options[0].id;
-      }
-    });
-    return initial;
-  });
+  const [selectedVariants, setSelectedVariants] = useState({});
   const [quantity, setQuantity] = useState(1);
 
   // Action states
@@ -82,48 +62,88 @@ export default function ProductPage() {
   const [pincode, setPincode] = useState("302001");
   const [pincodeStatus, setPincodeStatus] = useState("Delivery available by Friday • Free delivery");
 
-  // Reviews state (allows dynamic review submissions)
-  const [reviews, setReviews] = useState(() => product?.reviews || []);
+  // New review form
   const [newReviewModalOpen, setNewReviewModalOpen] = useState(false);
-  const [newReviewAuthor, setNewReviewAuthor] = useState("");
   const [newReviewRating, setNewReviewRating] = useState(5);
-  const [newReviewTitle, setNewReviewTitle] = useState("");
   const [newReviewComment, setNewReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
-  // Calculate dynamic price based on selected variants if any
+  // Fetch product from DB API
+  const fetchProduct = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.get(`/products/${id}`);
+      if (res.data?.success && res.data.product) {
+        setProduct(res.data.product);
+      } else {
+        setError(res.data?.message || "Product not found.");
+      }
+    } catch (err) {
+      console.error("Error fetching product:", err);
+      setError("Product not found or database error.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  // Fetch reviews from DB API
+  const fetchReviews = useCallback(async () => {
+    try {
+      const res = await apiClient.get(`/reviews/product/${id}`);
+      if (res.data?.success) {
+        setReviews(res.data.reviews || []);
+        if (res.data.stats) {
+          setReviewStats(res.data.stats);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch product reviews:", err.message);
+    }
+  }, [id]);
+
+  // Fetch related products from DB API
+  const fetchRelated = useCallback(async () => {
+    try {
+      const res = await apiClient.get("/products", { params: { limit: 4 } });
+      if (res.data?.success) {
+        const list = (res.data.products || []).filter((p) => String(p.id) !== String(id));
+        setRelatedProducts(list.slice(0, 4));
+        setRecommendedProducts(list.slice(0, 4));
+      }
+    } catch (err) {
+      console.warn("Could not fetch related products:", err.message);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchProduct();
+    fetchReviews();
+    fetchRelated();
+  }, [fetchProduct, fetchReviews, fetchRelated]);
+
   const calculatedPrice = useMemo(() => {
     if (!product) return 0;
-    let price = product.price;
-    if (product.variants) {
-      product.variants.forEach((v) => {
-        const selectedId = selectedVariants[v.name];
-        const match = v.options?.find((opt) => opt.id === selectedId);
-        if (match?.priceDelta) {
-          price += match.priceDelta;
-        }
-      });
-    }
-    return Math.max(0, price);
-  }, [product, selectedVariants]);
+    return Number(product.price) || 0;
+  }, [product]);
 
-  // Related & Recommended products (Strictly Small Card only)
-  const relatedProducts = useMemo(
-    () => (product ? getRelatedProducts(product.id, product.category, 4) : []),
-    [product]
-  );
-  const recommendedProducts = useMemo(
-    () => (product ? getRecommendedProducts(product.id, 4) : []),
-    [product]
-  );
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#efe5e5] flex flex-col items-center justify-center p-6 text-center">
+        <Loader2 size={36} className="animate-spin text-[#48154c] mb-3" />
+        <p className="text-sm font-semibold text-[#48154c]">Loading product details...</p>
+      </div>
+    );
+  }
 
-  if (!product) {
+  if (error || !product) {
     return (
       <div className="min-h-screen bg-[#efe5e5] flex flex-col items-center justify-center p-6 text-center">
         <div className="bg-white p-8 rounded-3xl border border-[#e2d3c8] max-w-md w-full shadow-md">
           <span className="text-4xl mb-4 block">📦</span>
           <h2 className="text-xl font-bold text-[#48154c] mb-2">Product Not Found</h2>
           <p className="text-sm text-[#7a6070] mb-6">
-            The requested handmade craft might have been updated or moved.
+            {error || "The requested handmade craft might have been updated or removed."}
           </p>
           <button
             onClick={() => navigate("/dashboard/buyer")}
@@ -136,26 +156,15 @@ export default function ProductPage() {
     );
   }
 
+  const productName = product.title || product.name || "Handcrafted Item";
   const images = Array.isArray(product.images) && product.images.length > 0
     ? product.images
-    : [product.image || "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80"];
+    : [product.image_url || product.image || "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80"];
 
   const currentImage = images[activeImageIndex] || images[0];
+  const sellerName = product.artisan_name || (typeof product.seller === "object" ? product.seller?.name : product.seller) || "Woman Entrepreneur";
+  const originalPrice = product.original_price || product.originalPrice;
 
-  const sellerName =
-    typeof product.seller === "object"
-      ? product.seller?.name || "Artisan"
-      : product.seller || "Artisan";
-
-  // Variant change handler
-  const handleVariantSelect = (variantName, optionId) => {
-    setSelectedVariants((prev) => ({
-      ...prev,
-      [variantName]: optionId,
-    }));
-  };
-
-  // Quantity stepper handlers
   const handleDecreaseQty = () => {
     setQuantity((prev) => Math.max(1, prev - 1));
   };
@@ -164,7 +173,6 @@ export default function ProductPage() {
     setQuantity((prev) => Math.min(product.stock || 10, prev + 1));
   };
 
-  // Pincode lookup simulation
   const handleCheckPincode = (e) => {
     e.preventDefault();
     if (pincode.length >= 6) {
@@ -174,13 +182,11 @@ export default function ProductPage() {
     }
   };
 
-  // Add to cart
   const handleAddToCart = () => {
-    setCartSuccessMessage(`Added ${quantity} x ${product.name} to your cart!`);
+    setCartSuccessMessage(`Added ${quantity} x ${productName} to your cart!`);
     setTimeout(() => setCartSuccessMessage(null), 3000);
   };
 
-  // Buy now modal
   const handleOpenBuyNow = () => {
     setBuyNowModalOpen(true);
     setOrderCompleted(null);
@@ -195,17 +201,17 @@ export default function ProductPage() {
       const res = await apiClient.post("/payment/create-order", {
         userId: user?.id || 1,
         amount: calculatedPrice * quantity,
-        customerName: user?.userName || "Buyer",
+        customerName: user?.userName || user?.name || "Buyer",
         customerEmail: user?.email || "buyer@gruhinezz.com",
         customerPhone: user?.contactNo || "9876543210",
-        productTitle: `${product.name} (Qty: ${quantity})`,
+        productTitle: `${productName} (Qty: ${quantity})`,
       });
 
       const orderId = res.data?.orderId || `order_${Date.now()}`;
       setOrderCompleted({
         orderId,
         amount: calculatedPrice * quantity,
-        productName: product.name,
+        productName: productName,
         quantity,
         seller: sellerName,
       });
@@ -214,7 +220,7 @@ export default function ProductPage() {
       setOrderCompleted({
         orderId: `order_${Date.now()}`,
         amount: calculatedPrice * quantity,
-        productName: product.name,
+        productName: productName,
         quantity,
         seller: sellerName,
       });
@@ -223,31 +229,36 @@ export default function ProductPage() {
     }
   };
 
-  // Submit Review
-  const handleSubmitReview = (e) => {
+  const handleSubmitReview = async (e) => {
     e.preventDefault();
-    if (!newReviewAuthor || !newReviewComment) return;
+    if (!newReviewComment) return;
 
-    const newRev = {
-      id: Date.now(),
-      userName: newReviewAuthor,
-      rating: Number(newReviewRating),
-      date: "Just now",
-      title: newReviewTitle || "Verified Craft Purchase",
-      comment: newReviewComment,
-      verifiedPurchase: true,
-    };
+    setSubmittingReview(true);
+    try {
+      const res = await apiClient.post("/reviews", {
+        productId: product.id,
+        rating: newReviewRating,
+        comment: newReviewComment,
+      });
 
-    setReviews((prev) => [newRev, ...prev]);
-    setNewReviewModalOpen(false);
-    setNewReviewAuthor("");
-    setNewReviewTitle("");
-    setNewReviewComment("");
+      if (res.data?.success) {
+        setNewReviewModalOpen(false);
+        setNewReviewComment("");
+        fetchReviews();
+      } else {
+        alert("Failed to submit review: " + (res.data?.message || "Please login as a buyer"));
+      }
+    } catch (err) {
+      console.error("Error submitting review:", err);
+      alert(err.response?.data?.message || "Failed to submit review. Please ensure you are logged in.");
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-[#efe5e5] text-[#2d2130] pb-20">
-      {/* ── Top Navigation Bar ── */}
+      {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#e2d3c8] shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -268,7 +279,6 @@ export default function ProductPage() {
             </Link>
           </div>
 
-          {/* Breadcrumbs */}
           <nav className="hidden lg:flex items-center gap-1.5 text-xs text-[#7a6070]">
             <Link to="/dashboard/buyer" className="hover:text-[#48154c]">
               Home
@@ -277,11 +287,10 @@ export default function ProductPage() {
             <span>{product.category}</span>
             <ChevronRight size={13} />
             <span className="text-[#48154c] font-medium truncate max-w-[200px]">
-              {product.name}
+              {productName}
             </span>
           </nav>
 
-          {/* Right Action Icons */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsWishlisted(!isWishlisted)}
@@ -307,7 +316,6 @@ export default function ProductPage() {
         </div>
       </header>
 
-      {/* Cart Notification Toast */}
       {cartSuccessMessage && (
         <div className="fixed top-20 right-4 z-50 bg-[#48154c] text-white px-5 py-3 rounded-2xl shadow-xl border border-[#ae3a65] flex items-center gap-3 animate-bounce">
           <CheckCircle2 size={20} className="text-emerald-400" />
@@ -316,22 +324,17 @@ export default function ProductPage() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {/* ── Main Product Section (2-Column Desktop Grid) ── */}
         <div className="bg-white rounded-3xl border border-[#e2d3c8] shadow-sm p-6 sm:p-8 lg:p-10 mb-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-            {/* ════════════════════════════════════════════════════════
-                A. PRODUCT IMAGE SECTION
-                ════════════════════════════════════════════════════════ */}
+            {/* Product Image Section */}
             <div className="lg:col-span-6 flex flex-col gap-4">
-              {/* Main Image Container */}
               <div className="relative w-full aspect-square bg-[#f5ece6] rounded-2xl overflow-hidden border border-[#e2d3c8] group">
                 <img
                   src={currentImage}
-                  alt={product.name}
+                  alt={productName}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
 
-                {/* Lightbox / Zoom Button */}
                 <button
                   onClick={() => setLightboxOpen(true)}
                   className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-xs p-2.5 rounded-xl shadow-md text-[#48154c] hover:bg-white hover:text-[#ae3a65] transition-all"
@@ -340,20 +343,13 @@ export default function ProductPage() {
                   <Maximize2 size={18} />
                 </button>
 
-                {/* Category & Badge */}
                 <div className="absolute top-4 left-4 flex flex-col gap-1.5 items-start">
                   <span className="bg-[#48154c] text-white text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                     {product.category}
                   </span>
-                  {product.discount && (
-                    <span className="bg-[#ae3a65] text-white text-xs font-bold px-2.5 py-0.5 rounded-full shadow-sm">
-                      {product.discount}
-                    </span>
-                  )}
                 </div>
               </div>
 
-              {/* Thumbnail Gallery */}
               {images.length > 1 && (
                 <div className="flex items-center gap-3 overflow-x-auto pb-1">
                   {images.map((img, idx) => (
@@ -376,7 +372,6 @@ export default function ProductPage() {
                 </div>
               )}
 
-              {/* Artisan Highlight Badge */}
               <div className="mt-2 p-4 bg-[#f5ece6]/70 rounded-2xl border border-[#e2d3c8] flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[#48154c] text-white flex items-center justify-center font-bold text-base flex-shrink-0">
                   {sellerName.charAt(0)}
@@ -388,65 +383,46 @@ export default function ProductPage() {
                       <UserCheck size={11} /> Verified Woman Artisan
                     </span>
                   </div>
-                  {product.seller?.location && (
-                    <p className="text-[#7a6070] flex items-center gap-1 mt-0.5">
-                      <MapPin size={11} /> {product.seller.location}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
 
-            {/* ════════════════════════════════════════════════════════
-                B. PRODUCT INFORMATION & PURCHASE CONTROLS
-                ════════════════════════════════════════════════════════ */}
+            {/* Product Info Section */}
             <div className="lg:col-span-6 flex flex-col justify-between">
               <div>
-                {/* Brand & Category Header */}
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <span className="text-xs font-semibold text-[#ae3a65] tracking-wider uppercase">
-                    {product.specifications?.["Brand"] || product.category}
+                    {product.category}
                   </span>
 
-                  {/* Rating & Review Jump Link */}
-                  {product.rating && (
-                    <a
-                      href="#reviews-section"
-                      className="flex items-center gap-1.5 bg-[#f5ece6] px-3 py-1 rounded-full text-xs font-semibold text-[#48154c] hover:bg-[#e2d3c8] transition-colors"
-                    >
-                      <Star size={14} className="fill-[#e09117] text-[#e09117]" />
-                      <span>{product.rating}</span>
-                      <span className="text-[#7a6070] font-normal">
-                        ({reviews.length} reviews)
-                      </span>
-                    </a>
-                  )}
+                  <a
+                    href="#reviews-section"
+                    className="flex items-center gap-1.5 bg-[#f5ece6] px-3 py-1 rounded-full text-xs font-semibold text-[#48154c] hover:bg-[#e2d3c8] transition-colors"
+                  >
+                    <Star size={14} className="fill-[#e09117] text-[#e09117]" />
+                    <span>{reviewStats.avg_rating || product.rating || "0.0"}</span>
+                    <span className="text-[#7a6070] font-normal">
+                      ({reviewStats.review_count || reviews.length} reviews)
+                    </span>
+                  </a>
                 </div>
 
-                {/* Product Name — Large and Bold */}
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-[#2d2130] leading-tight mb-2">
-                  {product.name}
+                  {productName}
                 </h1>
 
-                {/* Seller attribution */}
                 <p className="text-xs sm:text-sm text-[#7a6070] mb-4">
                   Handcrafted by <strong className="text-[#48154c]">{sellerName}</strong>
                 </p>
 
-                {/* Price Display */}
                 <div className="p-4 bg-[#f5ece6]/50 rounded-2xl border border-[#e2d3c8] mb-6">
                   <div className="flex items-baseline gap-3">
                     <span className="text-3xl sm:text-4xl font-extrabold text-[#48154c]">
                       ₹{calculatedPrice}
                     </span>
-                    {product.originalPrice && product.originalPrice > calculatedPrice && (
+                    {originalPrice && originalPrice > calculatedPrice && (
                       <span className="text-base sm:text-lg text-[#7a6070] line-through">
-                        ₹{product.originalPrice}
-                      </span>
-                    )}
-                    {product.discount && (
-                      <span className="text-xs sm:text-sm font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300">
-                        {product.discount}
+                        ₹{originalPrice}
                       </span>
                     )}
                   </div>
@@ -455,71 +431,6 @@ export default function ProductPage() {
                   </p>
                 </div>
 
-                {/* Special Offers List */}
-                <div className="mb-6 space-y-2">
-                  <p className="text-xs font-bold text-[#48154c] flex items-center gap-1.5 uppercase tracking-wider">
-                    <Tag size={13} /> Available Offers
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-white border border-[#e2d3c8] text-[#48154c] flex items-start gap-2">
-                      <span className="font-bold text-emerald-600">UPI</span>
-                      <span>Flat 5% instant discount on UPI prepaid payments</span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-white border border-[#e2d3c8] text-[#48154c] flex items-start gap-2">
-                      <span className="font-bold text-[#ae3a65]">COMBO</span>
-                      <span>Free gift box on ordering 2 or more handcrafted items</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ════════════════════════════════════════════════════
-                    E. VARIANTS SELECTOR
-                    ════════════════════════════════════════════════════ */}
-                {product.variants && product.variants.length > 0 && (
-                  <div className="space-y-4 mb-6">
-                    {product.variants.map((variant) => (
-                      <div key={variant.name}>
-                        <div className="flex items-center justify-between text-xs mb-2">
-                          <span className="font-bold text-[#48154c] uppercase tracking-wide">
-                            Select {variant.name}
-                          </span>
-                          <span className="text-[#7a6070]">
-                            {variant.options?.find((o) => o.id === selectedVariants[variant.name])?.label}
-                          </span>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          {variant.options.map((opt) => {
-                            const isSelected = selectedVariants[variant.name] === opt.id;
-                            return (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={() => handleVariantSelect(variant.name, opt.id)}
-                                className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                                  isSelected
-                                    ? "bg-[#48154c] text-white border-[#48154c] shadow-xs scale-102"
-                                    : "bg-white text-[#2d2130] border-[#e2d3c8] hover:border-[#ae3a65]"
-                                }`}
-                              >
-                                <span>{opt.label}</span>
-                                {opt.priceDelta ? (
-                                  <span className="ml-1 opacity-80">
-                                    ({opt.priceDelta > 0 ? `+₹${opt.priceDelta}` : `-₹${Math.abs(opt.priceDelta)}`})
-                                  </span>
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* ════════════════════════════════════════════════════
-                    F. QUANTITY SELECTOR & STOCK STATUS
-                    ════════════════════════════════════════════════════ */}
                 <div className="flex flex-wrap items-center gap-6 mb-8 pt-4 border-t border-[#f5ece6]">
                   <div>
                     <label className="block text-xs font-bold text-[#48154c] mb-1.5 uppercase tracking-wide">
@@ -531,7 +442,6 @@ export default function ProductPage() {
                         onClick={handleDecreaseQty}
                         disabled={quantity <= 1}
                         className="w-10 h-10 flex items-center justify-center text-[#48154c] hover:bg-[#f5ece6] disabled:opacity-40 transition-colors"
-                        aria-label="Decrease quantity"
                       >
                         <Minus size={15} />
                       </button>
@@ -543,14 +453,12 @@ export default function ProductPage() {
                         onClick={handleIncreaseQty}
                         disabled={quantity >= (product.stock || 10)}
                         className="w-10 h-10 flex items-center justify-center text-[#48154c] hover:bg-[#f5ece6] disabled:opacity-40 transition-colors"
-                        aria-label="Increase quantity"
                       >
                         <Plus size={15} />
                       </button>
                     </div>
                   </div>
 
-                  {/* Stock status indicator */}
                   <div>
                     <span className="block text-xs font-bold text-[#48154c] mb-1.5 uppercase tracking-wide">
                       Availability
@@ -564,11 +472,7 @@ export default function ProductPage() {
                   </div>
                 </div>
 
-                {/* ════════════════════════════════════════════════════
-                    G. PROMINENT ACTIONS
-                    ════════════════════════════════════════════════════ */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                  {/* Add to Cart */}
                   <button
                     type="button"
                     onClick={handleAddToCart}
@@ -578,7 +482,6 @@ export default function ProductPage() {
                     <span>Add to Cart</span>
                   </button>
 
-                  {/* Buy Now */}
                   <button
                     type="button"
                     onClick={handleOpenBuyNow}
@@ -590,9 +493,6 @@ export default function ProductPage() {
                 </div>
               </div>
 
-              {/* ════════════════════════════════════════════════════════
-                  H. DELIVERY / AVAILABILITY SECTION
-                  ════════════════════════════════════════════════════════ */}
               <div className="p-4 bg-[#f5ece6]/60 rounded-2xl border border-[#e2d3c8] text-xs space-y-3">
                 <form onSubmit={handleCheckPincode} className="flex items-center gap-2">
                   <Truck size={16} className="text-[#48154c] flex-shrink-0" />
@@ -613,157 +513,49 @@ export default function ProductPage() {
                 </form>
 
                 <p className="text-emerald-800 font-medium pl-6">{pincodeStatus}</p>
-
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#e2d3c8]/60 text-[#7a6070]">
-                  <div className="flex items-center gap-1.5">
-                    <RotateCcw size={14} className="text-[#48154c]" />
-                    <span>{product.deliveryInformation?.returnPolicy || "7-Day Easy Replacement"}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <ShieldCheck size={14} className="text-[#48154c]" />
-                    <span>100% Genuine Handcrafted</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── Tabs / Detailed Sections ── */}
+        {/* Product Description Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-          {/* ════════════════════════════════════════════════════════
-              C. PRODUCT DESCRIPTION (Complete, Untruncated)
-              ════════════════════════════════════════════════════════ */}
           <div className="lg:col-span-7 bg-white rounded-3xl border border-[#e2d3c8] p-6 sm:p-8 shadow-sm">
             <h2 className="text-xl font-bold text-[#48154c] mb-4 pb-2 border-b border-[#f5ece6]">
               Product Description
             </h2>
 
-            {/* Overview */}
-            {product.description?.overview && (
-              <div className="mb-6">
-                <h3 className="text-xs font-bold text-[#ae3a65] uppercase tracking-wider mb-1.5">
-                  Overview
-                </h3>
-                <p className="text-sm text-[#2d2130] leading-relaxed">
-                  {product.description.overview}
-                </p>
-              </div>
-            )}
-
-            {/* Features */}
-            {product.description?.features && product.description.features.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-xs font-bold text-[#ae3a65] uppercase tracking-wider mb-2">
-                  Key Features & Craftsmanship
-                </h3>
-                <ul className="space-y-2 text-sm text-[#2d2130]">
-                  {product.description.features.map((feat, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-[#48154c] font-bold mt-0.5">•</span>
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Benefits */}
-            {product.description?.benefits && product.description.benefits.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-xs font-bold text-[#ae3a65] uppercase tracking-wider mb-2">
-                  Benefits & Impact
-                </h3>
-                <ul className="space-y-2 text-sm text-[#2d2130]">
-                  {product.description.benefits.map((benefit, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <span className="text-emerald-600 font-bold mt-0.5">✓</span>
-                      <span>{benefit}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Usage */}
-            {product.description?.usage && (
-              <div className="mb-6">
-                <h3 className="text-xs font-bold text-[#ae3a65] uppercase tracking-wider mb-1.5">
-                  Usage & Care Instructions
-                </h3>
-                <p className="text-sm text-[#2d2130] leading-relaxed bg-[#f5ece6]/40 p-3.5 rounded-xl border border-[#e2d3c8]">
-                  {product.description.usage}
-                </p>
-              </div>
-            )}
-
-            {/* Artisan Story */}
-            {product.seller?.artisanStory && (
-              <div className="p-4 bg-gradient-to-br from-[#f5ece6] to-[#efe5e5] rounded-2xl border border-[#e2d3c8]">
-                <h3 className="text-xs font-bold text-[#48154c] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-[#ae3a65]" />
-                  Artisan's Story — {sellerName}
-                </h3>
-                <p className="text-xs sm:text-sm text-[#5a4855] italic leading-relaxed">
-                  "{product.seller.artisanStory}"
-                </p>
-              </div>
-            )}
+            <div className="mb-6">
+              <h3 className="text-xs font-bold text-[#ae3a65] uppercase tracking-wider mb-1.5">
+                Overview
+              </h3>
+              <p className="text-sm text-[#2d2130] leading-relaxed">
+                {typeof product.description === "object"
+                  ? product.description.overview || JSON.stringify(product.description)
+                  : product.description || "Authentic handmade craft by household woman artisan."}
+              </p>
+            </div>
           </div>
 
-          {/* ════════════════════════════════════════════════════════
-              D. PRODUCT SPECIFICATIONS SECTION
-              ════════════════════════════════════════════════════════ */}
           <div className="lg:col-span-5 bg-white rounded-3xl border border-[#e2d3c8] p-6 sm:p-8 shadow-sm">
             <h2 className="text-xl font-bold text-[#48154c] mb-4 pb-2 border-b border-[#f5ece6]">
-              Product Specifications
+              Seller Information
             </h2>
-
-            {product.specifications && Object.keys(product.specifications).length > 0 ? (
-              <div className="divide-y divide-[#f5ece6]">
-                {Object.entries(product.specifications).map(([key, val]) => (
-                  <div key={key} className="py-2.5 flex justify-between gap-4 text-xs">
-                    <span className="font-semibold text-[#7a6070] w-1/3 flex-shrink-0">
-                      {key}
-                    </span>
-                    <span className="text-[#2d2130] font-medium text-right flex-1">
-                      {val}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-[#7a6070]">
-                Standard handcrafted specifications apply.
+            <div className="space-y-2 text-xs text-[#5a4855]">
+              <p>
+                <strong>Artisan Name:</strong> {sellerName}
               </p>
-            )}
-
-            {/* Seller profile card */}
-            <div className="mt-8 pt-6 border-t border-[#f5ece6]">
-              <h3 className="text-xs font-bold text-[#48154c] uppercase tracking-wider mb-3">
-                Seller Information
-              </h3>
-              <div className="space-y-1.5 text-xs text-[#5a4855]">
-                <p>
-                  <strong>Store:</strong> {product.seller?.storeName || `${sellerName}'s Craft House`}
-                </p>
-                <p>
-                  <strong>Location:</strong> {product.seller?.location || "India"}
-                </p>
-                <p>
-                  <strong>On GruhinEzz since:</strong> {product.seller?.joinedYear || "2023"}
-                </p>
-                <p>
-                  <strong>Seller Rating:</strong> ★ {product.seller?.rating || "4.9"} / 5.0
-                </p>
-              </div>
+              <p>
+                <strong>Category:</strong> {product.category}
+              </p>
+              <p>
+                <strong>Authenticity:</strong> 100% Homemade & Verified
+              </p>
             </div>
           </div>
         </div>
 
-        {/* ════════════════════════════════════════════════════════
-            I. REVIEWS & RATINGS SECTION
-            ════════════════════════════════════════════════════════ */}
+        {/* Reviews Section */}
         <section
           id="reviews-section"
           className="bg-white rounded-3xl border border-[#e2d3c8] p-6 sm:p-8 lg:p-10 shadow-sm mb-12"
@@ -787,100 +579,48 @@ export default function ProductPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-8">
-            {/* Rating breakdown snapshot */}
-            <div className="md:col-span-4 bg-[#f5ece6]/60 p-6 rounded-2xl border border-[#e2d3c8] flex flex-col items-center justify-center text-center">
-              <span className="text-5xl font-extrabold text-[#48154c]">
-                {product.rating || "4.9"}
-              </span>
-              <div className="flex items-center gap-1 my-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    size={18}
-                    className="fill-[#e09117] text-[#e09117]"
-                  />
-                ))}
-              </div>
-              <p className="text-xs text-[#7a6070]">
-                Based on {reviews.length} genuine customer reviews
-              </p>
-            </div>
-
-            {/* Rating bars */}
-            <div className="md:col-span-8 flex flex-col justify-center space-y-2">
-              {[
-                { stars: 5, pct: 85 },
-                { stars: 4, pct: 12 },
-                { stars: 3, pct: 2 },
-                { stars: 2, pct: 1 },
-                { stars: 1, pct: 0 },
-              ].map((bar) => (
-                <div key={bar.stars} className="flex items-center gap-3 text-xs">
-                  <span className="w-12 text-[#48154c] font-semibold">{bar.stars} Stars</span>
-                  <div className="flex-1 h-2.5 bg-[#f5ece6] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#48154c] to-[#ae3a65] rounded-full"
-                      style={{ width: `${bar.pct}%` }}
-                    />
+          {reviews.length > 0 ? (
+            <div className="divide-y divide-[#f5ece6]">
+              {reviews.map((rev) => (
+                <div key={rev.id} className="py-5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-bold text-sm text-[#2d2130]">
+                      {rev.user_name || "Verified Buyer"}
+                    </span>
+                    <span className="text-xs text-[#7a6070]">
+                      {new Date(rev.created_at || Date.now()).toLocaleDateString()}
+                    </span>
                   </div>
-                  <span className="w-10 text-right text-[#7a6070]">{bar.pct}%</span>
+
+                  <div className="flex items-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        size={13}
+                        className={
+                          s <= rev.rating
+                            ? "fill-[#e09117] text-[#e09117]"
+                            : "text-[#e2d3c8]"
+                        }
+                      />
+                    ))}
+                  </div>
+
+                  <p className="text-xs sm:text-sm text-[#5a4855] leading-relaxed">
+                    {rev.comment}
+                  </p>
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Reviews list */}
-          <div className="divide-y divide-[#f5ece6]">
-            {reviews.map((rev) => (
-              <div key={rev.id} className="py-5">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-[#2d2130]">
-                      {rev.userName}
-                    </span>
-                    {rev.verifiedPurchase && (
-                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                        <CheckCircle2 size={10} /> Verified Purchase
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-[#7a6070]">{rev.date}</span>
-                </div>
-
-                <div className="flex items-center gap-1 mb-2">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star
-                      key={s}
-                      size={13}
-                      className={
-                        s <= rev.rating
-                          ? "fill-[#e09117] text-[#e09117]"
-                          : "text-[#e2d3c8]"
-                      }
-                    />
-                  ))}
-                  {rev.title && (
-                    <span className="text-xs font-bold text-[#48154c] ml-1.5">
-                      {rev.title}
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs sm:text-sm text-[#5a4855] leading-relaxed">
-                  {rev.comment}
-                </p>
-              </div>
-            ))}
-          </div>
+          ) : (
+            <div className="p-8 text-center text-xs text-[#7a6070]">
+              No reviews yet for this product. Be the first to write a review!
+            </div>
+          )}
         </section>
 
-        {/* ════════════════════════════════════════════════════════
-            J. RELATED & RECOMMENDED PRODUCTS
-            CRITICAL: Strictly rendered using ProductSmallCard!
-            ════════════════════════════════════════════════════════ */}
+        {/* Related & Recommended Products */}
         <section className="mt-12">
-          {/* Related Products */}
           {relatedProducts.length > 0 && (
             <div className="mb-10">
               <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#e2d3c8]">
@@ -894,32 +634,8 @@ export default function ProductPage() {
                 </div>
               </div>
 
-              {/* Grid of Small Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {relatedProducts.map((item) => (
-                  <ProductSmallCard key={item.id} product={item} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recommended Products */}
-          {recommendedProducts.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#e2d3c8]">
-                <div>
-                  <h3 className="text-lg sm:text-xl font-bold text-[#48154c]">
-                    Recommended for You
-                  </h3>
-                  <p className="text-xs text-[#7a6070]">
-                    Curated crafts from women entrepreneurs across India
-                  </p>
-                </div>
-              </div>
-
-              {/* Grid of Small Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {recommendedProducts.map((item) => (
                   <ProductSmallCard key={item.id} product={item} />
                 ))}
               </div>
@@ -928,7 +644,7 @@ export default function ProductPage() {
         </section>
       </main>
 
-      {/* ── Lightbox Image Modal ── */}
+      {/* Lightbox Image Modal */}
       {lightboxOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="relative max-w-3xl w-full max-h-[90vh] flex flex-col items-center">
@@ -941,15 +657,15 @@ export default function ProductPage() {
             </button>
             <img
               src={currentImage}
-              alt={product.name}
+              alt={productName}
               className="max-h-[80vh] w-auto object-contain rounded-2xl shadow-2xl"
             />
-            <p className="text-white text-sm mt-3 font-semibold">{product.name}</p>
+            <p className="text-white text-sm mt-3 font-semibold">{productName}</p>
           </div>
         </div>
       )}
 
-      {/* ── Write Review Modal ── */}
+      {/* Write Review Modal */}
       {newReviewModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#e2d3c8]">
@@ -966,20 +682,6 @@ export default function ProductPage() {
             </div>
 
             <form onSubmit={handleSubmitReview} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-[#48154c] mb-1">
-                  Your Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newReviewAuthor}
-                  onChange={(e) => setNewReviewAuthor(e.target.value)}
-                  placeholder="e.g. Shalini Roy"
-                  className="w-full bg-[#f5ece6] border border-[#e2d3c8] rounded-xl px-3 py-2 text-xs focus:outline-[#48154c]"
-                />
-              </div>
-
               <div>
                 <label className="block font-semibold text-[#48154c] mb-1">
                   Rating *
@@ -1010,19 +712,6 @@ export default function ProductPage() {
 
               <div>
                 <label className="block font-semibold text-[#48154c] mb-1">
-                  Headline / Title
-                </label>
-                <input
-                  type="text"
-                  value={newReviewTitle}
-                  onChange={(e) => setNewReviewTitle(e.target.value)}
-                  placeholder="e.g. Excellent craftsmanship & packaging!"
-                  className="w-full bg-[#f5ece6] border border-[#e2d3c8] rounded-xl px-3 py-2 text-xs focus:outline-[#48154c]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-[#48154c] mb-1">
                   Review Details *
                 </label>
                 <textarea
@@ -1030,23 +719,28 @@ export default function ProductPage() {
                   required
                   value={newReviewComment}
                   onChange={(e) => setNewReviewComment(e.target.value)}
-                  placeholder="Share details of the product quality, aroma, packaging, and your support to the artisan..."
+                  placeholder="Share details of the product quality, packaging, and your support to the artisan..."
                   className="w-full bg-[#f5ece6] border border-[#e2d3c8] rounded-xl px-3 py-2 text-xs focus:outline-[#48154c]"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#48154c] text-white font-bold rounded-xl hover:bg-[#38103c] transition-colors shadow-sm"
+                disabled={submittingReview}
+                className="w-full py-3 bg-[#48154c] text-white font-bold rounded-xl hover:bg-[#38103c] transition-colors shadow-sm flex items-center justify-center gap-2"
               >
-                Submit Review
+                {submittingReview ? (
+                  <span>Submitting Review...</span>
+                ) : (
+                  <span>Submit Review</span>
+                )}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* ── Buy Now / Checkout Modal ── */}
+      {/* Buy Now Modal */}
       {buyNowModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#e2d3c8]">
@@ -1065,20 +759,13 @@ export default function ProductPage() {
             {!orderCompleted ? (
               <div className="space-y-4">
                 <div className="p-4 bg-[#f5ece6] rounded-2xl text-xs space-y-2">
-                  <p className="font-bold text-sm text-[#2d2130]">{product.name}</p>
+                  <p className="font-bold text-sm text-[#2d2130]">{productName}</p>
                   <p className="text-[#7a6070]">Artisan: {sellerName}</p>
                   <p className="text-[#7a6070]">Quantity: {quantity}</p>
                   <div className="flex justify-between items-center pt-2 border-t border-[#e2d3c8] font-bold text-[#48154c] text-sm">
                     <span>Total Amount Payable:</span>
                     <span>₹{calculatedPrice * quantity}</span>
                   </div>
-                </div>
-
-                <div className="bg-[#efe5e5] p-3 rounded-xl border border-[#e2d3c8] text-xs text-[#48154c]">
-                  <p className="font-bold mb-0.5">ℹ️ Cashfree Gateway Active Mode</p>
-                  <p className="text-[#7a6070]">
-                    Payment records are securely logged to the database.
-                  </p>
                 </div>
 
                 <button

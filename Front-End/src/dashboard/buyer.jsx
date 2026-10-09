@@ -1,13 +1,8 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { logoutUser } from "../services/authService";
 import apiClient from "../services/apiClient";
 import logoImg from "../assets/logo.png";
-import {
-  searchProducts,
-  getRecommendedProducts,
-  getAllProducts,
-} from "../data/productsData";
 import ProductSmallCard from "../components/product/ProductSmallCard";
 import ProductBigCard from "../components/product/ProductBigCard";
 import {
@@ -23,10 +18,11 @@ import {
   MapPin,
   Settings,
   Save,
+  RefreshCw,
 } from "lucide-react";
 import "./dashboard.css";
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   "All",
   "Homemade Foods",
   "Apparel & Textiles",
@@ -68,22 +64,6 @@ const SAMPLE_BUYER_ORDERS = [
     trackingId: "DELHIVERY-GJ-98214",
     deliveryDate: "Delivered on 04 Oct 2026",
   },
-  {
-    id: "CF-ORD-76501",
-    date: "25 Sep 2026, 06:20 PM",
-    product: {
-      id: 5,
-      name: "Homemade Bilona Pure A2 Cow Ghee (1 Litre)",
-      image: "https://images.unsplash.com/photo-1631451095765-2c91616fc9e6?w=500&auto=format&fit=crop&q=60",
-      artisan: "Kamla Bai (Mathura, UP)",
-      price: 1150,
-      quantity: 1,
-      totalAmount: 1150,
-    },
-    status: "Delivered",
-    trackingId: "BLUEDART-UP-18492",
-    deliveryDate: "Delivered on 28 Sep 2026",
-  },
 ];
 
 export default function BuyerDashboard() {
@@ -92,10 +72,22 @@ export default function BuyerDashboard() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("Marketplace");
 
+  // Dynamic API state for products
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedSort, setSelectedSort] = useState("newest");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+
+  // Recommended products & wishlist
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
+  const [wishlistIds, setWishlistIds] = useState([]);
 
   // Cart & Order State
   const [cartCount, setCartCount] = useState(0);
@@ -104,11 +96,7 @@ export default function BuyerDashboard() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [processingOrder, setProcessingOrder] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
-
-  // Wishlisted Products & Buyer Orders
-  const allProducts = useMemo(() => getAllProducts(), []);
   const [buyerOrders, setBuyerOrders] = useState(SAMPLE_BUYER_ORDERS);
-  const [wishlistIds, setWishlistIds] = useState([1, 2, 6]);
 
   // Buyer Profile Form
   const [buyerProfile, setBuyerProfile] = useState({
@@ -121,6 +109,15 @@ export default function BuyerDashboard() {
     pincode: "560103",
   });
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Auth check
   useEffect(() => {
     const stored = localStorage.getItem("gruhinezz_user");
     if (!stored) {
@@ -135,49 +132,72 @@ export default function BuyerDashboard() {
     setUser(parsed);
     setBuyerProfile((prev) => ({
       ...prev,
-      name: parsed.userName || "",
+      name: parsed.userName || parsed.name || "",
       email: parsed.email || "",
       phone: parsed.contactNo || "",
     }));
   }, [navigate]);
+
+  // Fetch categories from backend
+  useEffect(() => {
+    apiClient
+      .get("/products/categories")
+      .then((res) => {
+        if (res.data?.categories && Array.isArray(res.data.categories)) {
+          const catNames = ["All", ...res.data.categories.map((c) => c.name)];
+          setCategories(catNames);
+        }
+      })
+      .catch(() => {
+        // Fallback to DEFAULT_CATEGORIES
+      });
+  }, []);
+
+  // Fetch products from backend
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = {};
+      if (selectedCategory && selectedCategory !== "All") {
+        params.category = selectedCategory;
+      }
+      if (debouncedSearch) {
+        params.search = debouncedSearch;
+      }
+      if (selectedSort) {
+        params.sort = selectedSort;
+      }
+      const res = await apiClient.get("/products", { params });
+      if (res.data?.success) {
+        setProducts(res.data.products || []);
+        // Set recommended products as top 4
+        if (!debouncedSearch && selectedCategory === "All") {
+          setRecommendedProducts((res.data.products || []).slice(0, 4));
+        }
+      } else {
+        setError(res.data?.message || "Failed to load products");
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      setError("Failed to load products. Please check server connection.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, debouncedSearch, selectedSort]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleLogout = async () => {
     await logoutUser();
     navigate("/login", { replace: true });
   };
 
-  // Search Results (displayed with Big Cards)
-  const searchResults = useMemo(() => {
-    return searchProducts(searchQuery, selectedCategory);
-  }, [searchQuery, selectedCategory]);
-
-  // Recommended Products & Suggestions (displayed with Small Cards)
-  const recommendedPicks = useMemo(() => {
-    return getRecommendedProducts(null, 4);
-  }, []);
-
-  const searchSuggestions = useMemo(() => {
-    if (!searchQuery.trim()) return [];
-    return searchProducts(searchQuery, "All").slice(0, 3);
-  }, [searchQuery]);
-
-  const wishlistedProducts = useMemo(() => {
-    return allProducts.filter((p) => wishlistIds.includes(p.id));
-  }, [allProducts, wishlistIds]);
-
-  if (!user) return null;
-
-  const navItems = [
-    { icon: "🏠", label: "Marketplace" },
-    { icon: "🛍️", label: "My Orders" },
-    { icon: "❤️", label: "Saved Crafts" },
-    { icon: "👩‍🌾", label: "Support Artisans" },
-    { icon: "⚙️", label: "Settings" },
-  ];
-
   const handleAddToCart = (product) => {
     setCartCount((c) => c + 1);
-    setCartToast(`Added "${product.name}" to cart!`);
+    setCartToast(`Added "${product.title || product.name}" to cart!`);
     setTimeout(() => setCartToast(null), 2500);
   };
 
@@ -201,28 +221,25 @@ export default function BuyerDashboard() {
     if (!selectedProduct) return;
     setProcessingOrder(true);
     try {
+      const pTitle = selectedProduct.title || selectedProduct.name;
+      const artisanName = selectedProduct.artisan_name || selectedProduct.artisan || "Woman Entrepreneur";
       const res = await apiClient.post("/payment/create-order", {
         userId: user.id,
         amount: selectedProduct.price,
-        customerName: user.userName,
+        customerName: user.userName || user.name,
         customerEmail: user.email,
         customerPhone: user.contactNo || "9876543210",
-        productTitle: selectedProduct.name,
+        productTitle: pTitle,
       });
 
       const orderId = res.data?.orderId || `order_${Date.now()}`;
-      const artisanName =
-        typeof selectedProduct.seller === "object"
-          ? selectedProduct.seller?.name
-          : selectedProduct.seller;
-
       const newOrder = {
         id: orderId,
         date: "Just now",
         product: {
           id: selectedProduct.id,
-          name: selectedProduct.name,
-          image: Array.isArray(selectedProduct.images) ? selectedProduct.images[0] : selectedProduct.image,
+          name: pTitle,
+          image: selectedProduct.image_url || selectedProduct.images?.[0] || selectedProduct.image,
           artisan: artisanName,
           price: selectedProduct.price,
           quantity: 1,
@@ -239,24 +256,21 @@ export default function BuyerDashboard() {
         success: true,
         orderId: orderId,
         amount: selectedProduct.price,
-        productTitle: selectedProduct.name,
+        productTitle: pTitle,
         artisan: artisanName,
       });
     } catch (err) {
       console.warn("Order creation warning:", err.message);
-      const artisanName =
-        typeof selectedProduct.seller === "object"
-          ? selectedProduct.seller?.name
-          : selectedProduct.seller;
-
+      const pTitle = selectedProduct.title || selectedProduct.name;
+      const artisanName = selectedProduct.artisan_name || selectedProduct.artisan || "Woman Entrepreneur";
       const orderId = `order_${Date.now()}`;
       const newOrder = {
         id: orderId,
         date: "Just now",
         product: {
           id: selectedProduct.id,
-          name: selectedProduct.name,
-          image: Array.isArray(selectedProduct.images) ? selectedProduct.images[0] : selectedProduct.image,
+          name: pTitle,
+          image: selectedProduct.image_url || selectedProduct.images?.[0] || selectedProduct.image,
           artisan: artisanName,
           price: selectedProduct.price,
           quantity: 1,
@@ -273,7 +287,7 @@ export default function BuyerDashboard() {
         success: true,
         orderId: orderId,
         amount: selectedProduct.price,
-        productTitle: selectedProduct.name,
+        productTitle: pTitle,
         artisan: artisanName,
       });
     } finally {
@@ -281,9 +295,22 @@ export default function BuyerDashboard() {
     }
   };
 
+  if (!user) return null;
+
+  const navItems = [
+    { icon: "🏠", label: "Marketplace" },
+    { icon: "🛍️", label: "My Orders" },
+    { icon: "❤️", label: "Saved Crafts" },
+    { icon: "👩‍🌾", label: "Support Artisans" },
+    { icon: "⚙️", label: "Settings" },
+  ];
+
+  const searchSuggestions = products.slice(0, 3);
+  const wishlistedProducts = products.filter((p) => wishlistIds.includes(p.id));
+
   return (
     <div className="dashboard-page">
-      {/* ── Sidebar ── */}
+      {/* Sidebar */}
       <div className={`dashboard-sidebar ${mobileNavOpen ? "dashboard-sidebar--open" : ""}`}>
         <div className="flex items-center gap-2 px-6 pb-6 pt-2 border-b border-[#e2d3c8]">
           <img src={logoImg} alt="GruhinEzz" className="h-8 w-auto object-contain" />
@@ -313,13 +340,12 @@ export default function BuyerDashboard() {
         </button>
       </div>
 
-      {/* Mobile overlay */}
       {mobileNavOpen && (
         <div className="dashboard-overlay" onClick={() => setMobileNavOpen(false)} />
       )}
 
       <main className="dashboard-main">
-        {/* Mobile header */}
+        {/* Mobile Header */}
         <div className="dashboard-mobile-header">
           <button
             className="dashboard-hamburger"
@@ -330,14 +356,14 @@ export default function BuyerDashboard() {
           </button>
           <span className="dashboard-mobile-logo">GruhinEzz</span>
           <div className="dashboard-avatar dashboard-avatar--sm">
-            {user.userName?.[0]?.toUpperCase()}
+            {(user.userName || user.name || "B")[0]?.toUpperCase()}
           </div>
         </div>
 
         <header className="dashboard-header">
           <div>
             <h1 className="dashboard-header__title">
-              Welcome, {user.userName}! 🌸
+              Welcome, {user.userName || user.name}! 🌸
             </h1>
             <p className="dashboard-header__subtitle">
               Discover authentic homemade products handcrafted by household women entrepreneurs across India.
@@ -358,12 +384,11 @@ export default function BuyerDashboard() {
               </button>
             </div>
             <div className="dashboard-avatar">
-              {user.userName?.[0]?.toUpperCase()}
+              {(user.userName || user.name || "B")[0]?.toUpperCase()}
             </div>
           </div>
         </header>
 
-        {/* Cart Toast Feedback */}
         {cartToast && (
           <div className="mb-4 p-3 bg-[#48154c] text-white rounded-2xl text-xs sm:text-sm font-medium flex items-center justify-between shadow-md">
             <span>✓ {cartToast}</span>
@@ -371,12 +396,9 @@ export default function BuyerDashboard() {
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════════
-            VIEW 1: MARKETPLACE
-            ════════════════════════════════════════════════════════ */}
+        {/* VIEW 1: MARKETPLACE */}
         {activeNav === "Marketplace" && (
           <>
-            {/* ── Search & Filter Section ── */}
             <div className="bg-white rounded-3xl border border-[#e2d3c8] p-5 sm:p-6 mb-8 shadow-sm">
               <div className="relative mb-4">
                 <div className="flex items-center bg-[#f5ece6] border border-[#e2d3c8] rounded-2xl px-4 py-3 focus-within:border-[#48154c] transition-colors">
@@ -402,7 +424,6 @@ export default function BuyerDashboard() {
                   )}
                 </div>
 
-                {/* Search Suggestions using STRICTLY ProductSmallCard */}
                 {suggestionsOpen && searchQuery.trim() && searchSuggestions.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-[#e2d3c8] p-3 shadow-xl z-30">
                     <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-[#f5ece6] text-xs font-semibold text-[#7a6070]">
@@ -430,24 +451,40 @@ export default function BuyerDashboard() {
                 )}
               </div>
 
-              {/* Category Filter Pills */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-                <span className="text-[#7a6070] font-semibold flex items-center gap-1 mr-1">
-                  <Filter size={13} /> Category:
-                </span>
-                {CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition-all ${
-                      selectedCategory === cat
-                        ? "bg-[#48154c] text-white shadow-xs"
-                        : "bg-[#f5ece6] text-[#2d2130] hover:bg-[#e2d3c8]"
-                    }`}
+              {/* Category Filter & Sort */}
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  <span className="text-[#7a6070] font-semibold flex items-center gap-1 mr-1">
+                    <Filter size={13} /> Category:
+                  </span>
+                  {categories.map((cat) => (
+                    <button
+                      key={typeof cat === "object" ? cat.name : cat}
+                      onClick={() => setSelectedCategory(typeof cat === "object" ? cat.name : cat)}
+                      className={`px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition-all ${
+                        selectedCategory === (typeof cat === "object" ? cat.name : cat)
+                          ? "bg-[#48154c] text-white shadow-xs"
+                          : "bg-[#f5ece6] text-[#2d2130] hover:bg-[#e2d3c8]"
+                      }`}
+                    >
+                      {typeof cat === "object" ? cat.name : cat}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[#7a6070] font-semibold">Sort:</span>
+                  <select
+                    value={selectedSort}
+                    onChange={(e) => setSelectedSort(e.target.value)}
+                    className="bg-[#f5ece6] border border-[#e2d3c8] rounded-xl px-3 py-1.5 text-xs text-[#2d2130] focus:outline-[#48154c]"
                   >
-                    {cat}
-                  </button>
-                ))}
+                    <option value="newest">Newest First</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="rating">Top Rated</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -456,7 +493,7 @@ export default function BuyerDashboard() {
               <div className="stat-card">
                 <span className="stat-card__icon">🛍️</span>
                 <div>
-                  <p className="stat-card__value">{searchResults.length}</p>
+                  <p className="stat-card__value">{products.length}</p>
                   <p className="stat-card__label">Active Products</p>
                 </div>
               </div>
@@ -484,29 +521,49 @@ export default function BuyerDashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-10">
-              {/* MAIN PRODUCT SEARCH RESULTS: STRICTLY ProductBigCard */}
+              {/* Main Product Catalog */}
               <div className="lg:col-span-8">
                 <div className="flex items-center justify-between mb-6 pb-3 border-b border-[#e2d3c8]">
                   <div>
                     <h2 className="text-xl font-bold text-[#2d2130]">
-                      {searchQuery
-                        ? `Search Results for "${searchQuery}"`
+                      {debouncedSearch
+                        ? `Search Results for "${debouncedSearch}"`
                         : selectedCategory !== "All"
                         ? `${selectedCategory} Results`
                         : "Handcrafted Product Catalog"}
                     </h2>
                     <p className="text-xs text-[#7a6070]">
-                      Showing {searchResults.length} verified products
+                      Showing {products.length} verified products
                     </p>
                   </div>
-                  <span className="text-xs font-semibold px-3 py-1 bg-[#48154c] text-white rounded-full">
-                    Search Results View
-                  </span>
+                  <button
+                    onClick={fetchProducts}
+                    className="p-2 rounded-xl bg-[#f5ece6] hover:bg-[#e2d3c8] text-[#48154c] transition-colors"
+                    title="Refresh products"
+                  >
+                    <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+                  </button>
                 </div>
 
-                {searchResults.length > 0 ? (
+                {loading ? (
+                  <div className="bg-white rounded-3xl p-12 border border-[#e2d3c8] text-center">
+                    <RefreshCw size={32} className="animate-spin text-[#48154c] mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-[#48154c]">Loading handcrafted products...</p>
+                  </div>
+                ) : error ? (
+                  <div className="bg-white rounded-3xl p-8 border border-red-200 text-center text-red-600">
+                    <p className="font-bold mb-2">⚠️ Error</p>
+                    <p className="text-xs mb-4">{error}</p>
+                    <button
+                      onClick={fetchProducts}
+                      className="px-4 py-2 bg-[#48154c] text-white rounded-xl text-xs font-semibold"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                ) : products.length > 0 ? (
                   <div className="space-y-6">
-                    {searchResults.map((product) => (
+                    {products.map((product) => (
                       <ProductBigCard
                         key={product.id}
                         product={product}
@@ -521,15 +578,16 @@ export default function BuyerDashboard() {
                   <div className="bg-white rounded-3xl p-8 border border-[#e2d3c8] text-center">
                     <span className="text-4xl mb-3 block">🔍</span>
                     <h3 className="font-bold text-[#48154c] text-lg mb-1">
-                      No crafts match your search
+                      No crafts match your filter criteria
                     </h3>
                     <p className="text-xs text-[#7a6070] mb-4">
-                      Try checking for typos or clear filters to view all products.
+                      Try checking for typos or clear search filters to view all products.
                     </p>
                     <button
                       onClick={() => {
                         setSearchQuery("");
                         setSelectedCategory("All");
+                        setSelectedSort("newest");
                       }}
                       className="px-4 py-2 bg-[#48154c] text-white rounded-xl text-xs font-semibold"
                     >
@@ -539,7 +597,7 @@ export default function BuyerDashboard() {
                 )}
               </div>
 
-              {/* RECOMMENDED & SUGGESTED: STRICTLY ProductSmallCard */}
+              {/* Recommended Side Panel */}
               <div className="lg:col-span-4">
                 <div className="sticky top-20 space-y-6">
                   <div className="bg-white rounded-3xl border border-[#e2d3c8] p-5 shadow-sm">
@@ -551,7 +609,7 @@ export default function BuyerDashboard() {
                     </div>
 
                     <div className="space-y-3">
-                      {recommendedPicks.map((product) => (
+                      {(recommendedProducts.length > 0 ? recommendedProducts : products.slice(0, 4)).map((product) => (
                         <ProductSmallCard
                           key={product.id}
                           product={product}
@@ -574,9 +632,7 @@ export default function BuyerDashboard() {
           </>
         )}
 
-        {/* ════════════════════════════════════════════════════════
-            VIEW 2: MY ORDERS (BUYER)
-            ════════════════════════════════════════════════════════ */}
+        {/* VIEW 2: MY ORDERS */}
         {activeNav === "My Orders" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-[#e2d3c8]">
@@ -663,10 +719,7 @@ export default function BuyerDashboard() {
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════════
-            VIEW 3: SAVED CRAFTS (WISHLIST)
-            Uses STRICTLY ProductSmallCard component
-            ════════════════════════════════════════════════════════ */}
+        {/* VIEW 3: SAVED CRAFTS */}
         {activeNav === "Saved Crafts" && (
           <div className="space-y-6">
             <div className="pb-4 border-b border-[#e2d3c8]">
@@ -708,9 +761,7 @@ export default function BuyerDashboard() {
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════════
-            VIEW 4: SUPPORT ARTISANS
-            ════════════════════════════════════════════════════════ */}
+        {/* VIEW 4: SUPPORT ARTISANS */}
         {activeNav === "Support Artisans" && (
           <div className="space-y-6">
             <div className="pb-4 border-b border-[#e2d3c8]">
@@ -800,9 +851,7 @@ export default function BuyerDashboard() {
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════════
-            VIEW 5: SETTINGS (BUYER)
-            ════════════════════════════════════════════════════════ */}
+        {/* VIEW 5: SETTINGS */}
         {activeNav === "Settings" && (
           <div className="space-y-6">
             <div className="pb-4 border-b border-[#e2d3c8]">
@@ -908,7 +957,7 @@ export default function BuyerDashboard() {
         )}
       </main>
 
-      {/* ── Order / Payment Modal (Cashfree PG on hold for live hosting) ── */}
+      {/* Payment Modal */}
       {paymentModalOpen && selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#e2d3c8] text-[#2d2130] relative">
@@ -930,9 +979,9 @@ export default function BuyerDashboard() {
                 </div>
 
                 <div className="bg-[#f5ece6] p-4 rounded-2xl mb-4 space-y-2 text-sm">
-                  <p className="font-semibold text-[#2d2130]">{selectedProduct.name}</p>
+                  <p className="font-semibold text-[#2d2130]">{selectedProduct.title || selectedProduct.name}</p>
                   <p className="text-xs text-[#7a6070]">
-                    Artisan: {typeof selectedProduct.seller === "object" ? selectedProduct.seller.name : selectedProduct.seller}
+                    Artisan: {selectedProduct.artisan_name || selectedProduct.artisan || "Woman Entrepreneur"}
                   </p>
                   <div className="flex justify-between items-center pt-2 border-t border-[#e2d3c8] font-bold text-[#48154c] text-base">
                     <span>Total Amount:</span>

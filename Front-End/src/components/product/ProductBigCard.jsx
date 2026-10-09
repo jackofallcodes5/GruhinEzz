@@ -29,16 +29,19 @@ export default function ProductBigCard({
 
   if (!product) return null;
 
+  const productName = product.title || product.name || "Handcrafted Item";
+
   const images = Array.isArray(product.images) && product.images.length > 0
     ? product.images
-    : [product.image || "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80"];
+    : [product.image_url || product.image || "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=800&auto=format&fit=crop&q=80"];
 
   const currentImage = images[activeImageIndex] || images[0];
 
   const sellerName =
-    typeof product.seller === "object"
+    product.artisan_name ||
+    (typeof product.seller === "object"
       ? product.seller?.name || "Artisan"
-      : product.seller || "Artisan";
+      : product.seller || "Artisan");
 
   const sellerLocation =
     typeof product.seller === "object" ? product.seller?.location : null;
@@ -49,6 +52,9 @@ export default function ProductBigCard({
       : typeof product.description === "string"
       ? product.description
       : "";
+
+  const reviewCount = product.review_count || product.reviewCount || 0;
+  const originalPrice = product.original_price || product.originalPrice;
 
   const handleCardClick = (e) => {
     // Avoid clicking if clicking an action button
@@ -179,7 +185,7 @@ export default function ProductBigCard({
 
           {/* Product Name — Large and Bold */}
           <h3 className="text-lg md:text-xl font-bold text-[#2d2130] group-hover:text-[#48154c] transition-colors line-clamp-2 leading-tight">
-            {product.name}
+            {productName}
           </h3>
 
           {/* Seller Name & Location */}
@@ -193,9 +199,9 @@ export default function ProductBigCard({
             <span className="text-2xl font-extrabold text-[#48154c]">
               ₹{product.price}
             </span>
-            {product.originalPrice && product.originalPrice > product.price && (
+            {originalPrice && originalPrice > product.price && (
               <span className="text-sm text-[#7a6070] line-through">
-                ₹{product.originalPrice}
+                ₹{originalPrice}
               </span>
             )}
             {product.discount && (
