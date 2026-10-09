@@ -5,7 +5,7 @@ import apiClient from "../services/apiClient";
 import logoImg from "../assets/logo.png";
 import {
   Lock, CheckCircle2, AlertTriangle, HeartHandshake, Users,
-  BarChart3, Sparkles, Plus, RefreshCw, Award, Home, Leaf, Handshake, BarChart2, Settings
+  BarChart3, Sparkles, Plus, RefreshCw, Award, Home, Leaf, Handshake, BarChart2, Settings, LogOut
 } from "lucide-react";
 import "./dashboard.css";
 import NgoProgramsView from "./ngo_views/NgoProgramsView";
